@@ -38,7 +38,7 @@ import DevOrders from "./Pages/Developer/Dev/DevOrders";
 import DevShowroom from "./Pages/Developer/Dev/DevShowroom";
 import DevBanners from "./Pages/Developer/Dev/DevBanners";
 import DevUsers from "./Pages/Developer/Dev/DevUsers";
-import DevCustomers from "./Pages/Developer/Dev/DevCustomers";
+
 
 import DigiPage from "./Pages/DigitalMarketer/DigiPage";
 import DigiOrders from "./Pages/DigitalMarketer/Digi/DigiOrders";
@@ -83,7 +83,7 @@ const routes = [
   { path: "/dev/showroom", layout: DevPage, page: DevShowroom },
   { path: "/dev/banner", layout: DevPage, page: DevBanners },
   { path: "/dev/users", layout: DevPage, page: DevUsers },
-  { path: "/dev/customers", layout: DevPage, page: DevCustomers },
+
 
   // DIGITAL MARKETER
   { path: "/digi/orders", layout: DigiPage, page: DigiOrders },

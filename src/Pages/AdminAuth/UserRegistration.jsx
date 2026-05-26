@@ -1,5 +1,5 @@
 // UserRegistration.jsx
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { Form, Input, Button, message, Alert, Select } from 'antd';
 import { useDispatch } from 'react-redux';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +7,7 @@ import {
   UserOutlined, 
   MailOutlined, 
   LockOutlined, 
-  HomeOutlined, 
+
   PhoneOutlined,
    
 } from '@ant-design/icons';

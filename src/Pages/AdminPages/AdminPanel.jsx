@@ -8,7 +8,7 @@ import Products from './Products/AdminProducts.jsx';
 import Orders from './Orders/Orders';
 import ShowRoom from "./AdminShowroom.jsx";
 import Users from './Users';
-import Customers from './Customers';
+
 import AdvertisementPage from './Advertisement';
 import BranchProductsPage from './BranchProductsPage.jsx';
 
@@ -38,8 +38,7 @@ const AdminPage = () => {
         return <BranchProductsPage />;
       case '/admin/users':
         return <Users />;
-      case '/admin/customers':
-        return <Customers />;
+
       case '/admin':
         return <Navigate to="/admin/dashboard" />;
       default:

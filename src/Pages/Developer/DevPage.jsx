@@ -13,7 +13,7 @@ import DevDashboard from './Dev/DevDashboard';
 
 import DevShowroom from './Dev/DevShowroom';
 import DevLayout from './DevLayout';
-import DevCustomers from './Dev/DevCustomers';
+
 import DevBranchProducts from './Dev/DevBranchProducts';
 
 const DevPage = () => {
@@ -41,8 +41,7 @@ const DevPage = () => {
         return <DevBranchProducts/>;
       case '/dev/users':
         return <DevUsers />;
-      case '/dev/customers':
-        return <DevCustomers />;
+    
        
       case '/dev':
         return <Navigate to="/dev/dashboard" />;

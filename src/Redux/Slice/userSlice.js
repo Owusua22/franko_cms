@@ -1,6 +1,6 @@
 // src/Redux/Slice/userSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axiosInstance, { isTokenExpired } from "./AxiosInstance";
+import axiosInstance from "./AxiosInstance";
 
 /* ═══════════════════════════════════════════════
    CONSTANTS

@@ -32,7 +32,7 @@ const FulfilmentHome = ({ children }) => {
 
   // Get user data safely
   const storedUser = localStorage.getItem('user');
-  const user = storedUser ? JSON.parse(storedUser) : null;
+  const user = storedUser ? (storedUser) : null;
 
   const fullName = user?.fullName || 'Guest';
 

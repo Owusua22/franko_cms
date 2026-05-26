@@ -1,5 +1,5 @@
 
-import React from 'react'
+
 import Dashboard from '../../AdminPages/Dashboard'
 
 function DevDashboard() {

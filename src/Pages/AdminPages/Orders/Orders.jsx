@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import  { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Checkbox, Button, TextField, Tooltip, IconButton,
@@ -20,7 +20,7 @@ const Orders = () => {
 
   // Agent names for filtering
   const agentNames = [
- "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah", "Dorcas ", "Hannah Jethro", "Mavis Attipoe", "Sadam Ansamah","Judith Tsegah","Dorcas Kumaku","Roseline Boateng"
+ "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah",  "Hannah Jethro", "Sadam Ansamah","Judith Tsegah","Dorcas Kumaku","Roseline Boateng"
   ];
 
   // State management
