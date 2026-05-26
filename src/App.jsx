@@ -5,7 +5,7 @@ import { tokenMonitor } from "./services/tokenMonitor";
 import { silentUserTokenRefresh, logoutUser } from "./Redux/Slice/userSlice";
 
 /* ==================== PAGES ==================== */
-import Customers from "./Pages/AdminPages/Customers";
+
 import AdvertisementPage from "./Pages/AdminPages/Advertisement";
 import AdminPage from "./Pages/AdminPages/AdminPanel";
 import Dashboard from "./Pages/AdminPages/Dashboard";
@@ -57,7 +57,7 @@ const routes = [
   { path: "/admin/brands", layout: AdminPage, page: Adminbrands },
   { path: "/admin/categories", layout: AdminPage, page: AdminCategory },
   { path: "/admin/showroom", layout: AdminPage, page: AdminShowroom },
-  { path: "/admin/customers", layout: AdminPage, page: Customers },
+
   { path: "/admin/banner", layout: AdminPage, page: AdvertisementPage },
   { path: "/admin/branch-products", layout: AdminPage, page: BranchProductsPage },
 
