@@ -1,29 +1,27 @@
-import  { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Checkbox, Button, TextField, Tooltip, IconButton,
   Select, MenuItem, Chip, CircularProgress, Pagination, Stack, Typography,
   Box, Grid
 } from "@mui/material";
-import { Visibility } from "@mui/icons-material";
+import { Visibility, ContentCopy, Edit } from "@mui/icons-material";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchOrdersByDate, fetchSalesOrderById } from "../../../Redux/Slice/orderSlice";
 import OrderDetailsModal from "./OrderDetailsModal";
 import CycleUpdateModal from "./CycleUpdateModal";
-import EditIcon from '@mui/icons-material/Edit';
 
 const Orders = () => {
   const dispatch = useDispatch();
   const { orders = [], loading } = useSelector((state) => state.orders);
 
-  // Agent names for filtering
   const agentNames = [
- "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah",  "Hannah Jethro", "Sadam Ansamah","Judith Tsegah","Dorcas Kumaku","Roseline Boateng"
+    "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah", "Hannah Jethro", 
+    "Sadam Ansamah", "Judith Tsegah", "Dorcas Kumaku", "Roseline Boateng"
   ];
 
-  // State management
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [searchText, setSearchText] = useState("");
   const [filterSource, setFilterSource] = useState("all");
@@ -41,6 +39,18 @@ const Orders = () => {
 
   const ITEMS_PER_PAGE = 10;
 
+  const handleCopy = useCallback((text) => {
+    if (text) navigator.clipboard.writeText(text);
+  }, []);
+
+  const CopyButton = ({ text, title }) => (
+    <Tooltip title={title}>
+      <IconButton size="small" onClick={() => handleCopy(text)} sx={{ p: 0.5 }}>
+        <ContentCopy sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  );
+
   const fetchCurrentMonthOrders = useCallback(() => {
     const now = dayjs();
     const from = now.startOf("month").format("YYYY-MM-DD");
@@ -52,7 +62,6 @@ const Orders = () => {
     fetchCurrentMonthOrders();
   }, [fetchCurrentMonthOrders]);
 
-  // Memoized grouped orders for better performance
   const groupedOrders = useMemo(() => {
     return Object.values(orders.reduce((acc, order) => {
       if (!acc[order.orderCode]) {
@@ -64,48 +73,34 @@ const Orders = () => {
     }, {}));
   }, [orders]);
 
-  // Memoized unique payment modes
   const uniquePaymentModes = useMemo(() => {
     const modes = new Set();
-    groupedOrders.forEach(order => {
-      if (order.paymentMode) {
-        modes.add(order.paymentMode);
-      }
-    });
+    groupedOrders.forEach(order => { if (order.paymentMode) modes.add(order.paymentMode); });
     return Array.from(modes).sort();
   }, [groupedOrders]);
 
-  // Optimized filtering with memoization
   const filteredOrders = useMemo(() => {
     return groupedOrders.filter(order => {
-      // Search filter
       const matchesSearch = !searchText || 
         order.fullName?.toLowerCase().includes(searchText.toLowerCase()) ||
         order.orderCycle?.toLowerCase().includes(searchText.toLowerCase()) ||
         order.orderCode?.toLowerCase().includes(searchText.toLowerCase());
 
-      // Source filter
       const matchesSource = filterSource === "all" ||
         (filterSource === "website" && order.orderCode.startsWith("ORD")) ||
         (filterSource === "app" && !order.orderCode.startsWith("ORD"));
 
-      // Payment mode filter
-      const matchesPaymentMode = filterPaymentMode === "all" || 
-        order.paymentMode === filterPaymentMode;
-
-      // Agent filter
+      const matchesPaymentMode = filterPaymentMode === "all" || order.paymentMode === filterPaymentMode;
       const matchesAgentType = filterAgentType === "all" ||
         (filterAgentType === "agents" && agentNames.includes(order.fullName)) ||
         (filterAgentType === "non-agents" && !agentNames.includes(order.fullName));
 
-      // Status filter
       const matchesStatus = !selectedStatus || order.orderCycle === selectedStatus;
 
       return matchesSearch && matchesSource && matchesPaymentMode && matchesAgentType && matchesStatus;
     }).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
   }, [groupedOrders, searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus, agentNames]);
 
-  // Memoized status counts
   const statusCounts = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
       const status = order.orderCycle || "Unknown";
@@ -114,27 +109,16 @@ const Orders = () => {
     }, {});
   }, [filteredOrders]);
 
-  // Memoized paginated orders
   const paginatedOrders = useMemo(() => {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredOrders, page]);
 
   const statusColors = {
-    "Order Placement": "warning",
-    Processing: "primary",
-    Confirmed: "success",
-    Pending: "warning",
-    Unreachable: "error",
-    "Out of Stock": "error",
-    "Wrong Number": "secondary",
-    Cancelled: "error",
-    "Not Answered": "info",
-    Delivery: "success",
-    Completed: "success",
-    "Multiple Orders": "info",
-    Testing: "secondary"
-
+    "Order Placement": "warning", Processing: "primary", Confirmed: "success",
+    Pending: "warning", Unreachable: "error", "Out of Stock": "error",
+    "Wrong Number": "secondary", Cancelled: "error", "Not Answered": "info",
+    Delivery: "success", Completed: "success", "Multiple Orders": "info", Testing: "secondary"
   };
 
   const handleFetchOrders = useCallback(() => {
@@ -149,34 +133,23 @@ const Orders = () => {
   }, [dateRange, dispatch]);
 
   const handleCheckboxClick = useCallback((orderCode) => {
-    setSelectedCheckboxes(prev => ({
-      ...prev,
-      [orderCode]: !prev[orderCode],
-    }));
+    setSelectedCheckboxes(prev => ({ ...prev, [orderCode]: !prev[orderCode] }));
   }, []);
 
   const handleSelectAll = useCallback(() => {
     const newChecked = !selectAll;
     setSelectAll(newChecked);
     const updated = {};
-    paginatedOrders.forEach(order => {
-      updated[order.orderCode] = newChecked;
-    });
+    paginatedOrders.forEach(order => { updated[order.orderCode] = newChecked; });
     setSelectedCheckboxes(updated);
   }, [selectAll, paginatedOrders]);
 
   const exportToExcel = useCallback(() => {
-    if (!filteredOrders.length) {
-      alert("No orders to export");
-      return;
-    }
+    if (!filteredOrders.length) return;
     const formatted = filteredOrders.map(order => ({
-      "Order Code": order.orderCode,
-      "Order Date": order.orderDate,
-      "Full Name": order.fullName,
-      "Contact Number": order.contactNumber,
-      "Payment Mode": order.paymentMode || "N/A",
-      "Status": order.orderCycle,
+      "Order Code": order.orderCode, "Order Date": order.orderDate,
+      "Full Name": order.fullName, "Contact Number": order.contactNumber,
+      "Payment Mode": order.paymentMode || "N/A", "Status": order.orderCycle,
       "Agent Type": agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"
     }));
     const worksheet = XLSX.utils.json_to_sheet(formatted);
@@ -187,16 +160,12 @@ const Orders = () => {
 
   const openDetailModal = useCallback(async (order) => {
     const orderId = order._id || order.orderCode;
-    
     if (!cachedOrderDetails[orderId]) {
       try {
         const orderDetails = await dispatch(fetchSalesOrderById(orderId));
         setCachedOrderDetails(prev => ({ ...prev, [orderId]: orderDetails }));
-      } catch (error) {
-        console.error("Error fetching order details:", error);
-      }
+      } catch (error) { console.error("Error fetching order details:", error); }
     }
-    
     setSelectedOrderId(orderId);
     setIsDetailModalOpen(true);
     handleCheckboxClick(order.orderCode);
@@ -219,185 +188,57 @@ const Orders = () => {
     closeCycleModal();
   }, [fetchCurrentMonthOrders, closeCycleModal]);
 
-  const handlePageChange = useCallback((_, value) => {
-    setPage(value);
-  }, []);
+  const handlePageChange = useCallback((_, value) => setPage(value), []);
 
   const handleStatusClick = useCallback((status) => {
     setSelectedStatus(prev => prev === status ? null : status);
-    setPage(1); // Reset to first page when filtering
+    setPage(1);
   }, []);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus]);
+  useEffect(() => { setPage(1); }, [searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus]);
 
   return (
     <div>
-      <Typography variant="h5" sx={{ color: "#f44336", mb: 2, fontWeight: 600 }}>
-        Orders
-      </Typography>
+      <Typography variant="h5" sx={{ color: "#f44336", mb: 2, fontWeight: 600 }}>Orders</Typography>
 
-      {/* Date Range and Export Controls */}
       <Box sx={{ mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              type="date"
-              label="Start Date"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <TextField
-              type="date"
-              label="End Date"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Button 
-              variant="contained" 
-              color="success" 
-              fullWidth
-              onClick={handleFetchOrders}
-              disabled={loading}
-            >
-              Fetch Orders
-            </Button>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Button 
-              variant="outlined" 
-              fullWidth
-              onClick={exportToExcel}
-              disabled={loading || !filteredOrders.length}
-            >
-              Export Excel
-            </Button>
-          </Grid>
+          <Grid item xs={12} sm={6} md={3}><TextField type="date" label="Start Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} /></Grid>
+          <Grid item xs={12} sm={6} md={3}><TextField type="date" label="End Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} /></Grid>
+          <Grid item xs={12} sm={6} md={3}><Button variant="contained" color="success" fullWidth onClick={handleFetchOrders} disabled={loading}>Fetch Orders</Button></Grid>
+          <Grid item xs={12} sm={6} md={3}><Button variant="outlined" fullWidth onClick={exportToExcel} disabled={loading || !filteredOrders.length}>Export Excel</Button></Grid>
         </Grid>
       </Box>
 
-      {/* Search */}
-      <TextField
-        fullWidth
-        variant="outlined"
-        placeholder="Search by name, status, or order code"
-        value={searchText}
-        onChange={(e) => setSearchText(e.target.value)}
-        sx={{ mb: 2 }}
-      />
+      <TextField fullWidth variant="outlined" placeholder="Search by name, status, or order code" value={searchText} onChange={(e) => setSearchText(e.target.value)} sx={{ mb: 2 }} />
 
-      {/* Filters */}
-      <Box sx={{ mb: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Source</Typography>
-            <Select
-              value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="all">All Orders</MenuItem>
-              <MenuItem value="website">Website Orders</MenuItem>
-              <MenuItem value="app">App Orders</MenuItem>
-            </Select>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Payment Mode</Typography>
-            <Select
-              value={filterPaymentMode}
-              onChange={(e) => setFilterPaymentMode(e.target.value)}
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="all">All Payment Modes</MenuItem>
-              {uniquePaymentModes.map(mode => (
-                <MenuItem key={mode} value={mode}>{mode}</MenuItem>
-              ))}
-            </Select>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Agent Type</Typography>
-            <Select
-              value={filterAgentType}
-              onChange={(e) => setFilterAgentType(e.target.value)}
-              fullWidth
-              size="small"
-            >
-              <MenuItem value="all">All Users</MenuItem>
-              <MenuItem value="agents">Agents Only</MenuItem>
-              <MenuItem value="non-agents">Non-Agents Only</MenuItem>
-            </Select>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle1" sx={{ mt: 4 }}>
-              <strong>Total Orders:</strong>{" "}
-              <span style={{ color: "#7cb342", fontWeight: 600 }}>
-                {filteredOrders.length}
-              </span>
-            </Typography>
-          </Grid>
-        </Grid>
-      </Box>
-
-      {/* Status Filter Chips */}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-        {/* All Status Chip */}
-        <Chip
-          label={`All Status (${filteredOrders.length})`}
-          color="info"
-          variant={selectedStatus === null ? "filled" : "outlined"}
-          onClick={() => handleStatusClick(null)}
-          clickable
-          sx={{ fontWeight: 600 }}
-        />
+        <Chip label={`All Status (${filteredOrders.length})`} color="info" variant={selectedStatus === null ? "filled" : "outlined"} onClick={() => handleStatusClick(null)} clickable sx={{ fontWeight: 600 }} />
         {Object.entries(statusCounts).map(([status, count]) => (
-          <Chip
-            key={status}
-            label={`${status} (${count})`}
-            color={statusColors[status] || "default"}
-            variant={status === selectedStatus ? "filled" : "outlined"}
-            onClick={() => handleStatusClick(status)}
-            clickable
-          />
+          <Chip key={status} label={`${status} (${count})`} color={statusColors[status] || "default"} variant={status === selectedStatus ? "filled" : "outlined"} onClick={() => handleStatusClick(status)} clickable />
         ))}
       </Box>
 
-      {/* Orders Table */}
-      <TableContainer component={Paper} sx={{ position: 'relative', minHeight: 400 }}>
+      {/* Table Container with relative positioning for overlay */}
+      <TableContainer component={Paper} sx={{ minHeight: 400, position: 'relative' }}>
+        
+        {/* Loading Overlay: Only appears when loading is true */}
         {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 2,
-            }}
-          >
+          <Box sx={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10
+          }}>
             <CircularProgress />
           </Box>
         )}
-        <Table>
+
+        <Table sx={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
           <TableHead>
             <TableRow>
-              <TableCell>
-                <Checkbox 
-                  checked={selectAll} 
-                  onChange={handleSelectAll}
-                  disabled={loading}
-                />
-              </TableCell>
+              <TableCell><Checkbox checked={selectAll} onChange={handleSelectAll} disabled={loading} /></TableCell>
               <TableCell>Order Code</TableCell>
               <TableCell>Order Date</TableCell>
               <TableCell>Customer Name</TableCell>
@@ -408,68 +249,47 @@ const Orders = () => {
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
-          <TableBody
-            sx={{
-              opacity: loading ? 0.3 : 1,
-              pointerEvents: loading ? 'none' : 'auto',
-            }}
-          >
+          <TableBody>
             {paginatedOrders.length > 0 ? (
               paginatedOrders.map(order => (
-                <TableRow key={order.orderCode}>
+                <TableRow key={order.orderCode} hover>
                   <TableCell>
-                    <Checkbox
-                      checked={selectedCheckboxes[order.orderCode] || false}
-                      onChange={() => handleCheckboxClick(order.orderCode)}
-                    />
+                    <Checkbox checked={selectedCheckboxes[order.orderCode] || false} onChange={() => handleCheckboxClick(order.orderCode)} />
                   </TableCell>
-                  <TableCell>{order.orderCode}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="body2">{order.orderCode}</Typography>
+                      <CopyButton text={order.orderCode} title="Copy Order Code" />
+                    </Stack>
+                  </TableCell>
                   <TableCell>{new Date(order.orderDate).toLocaleString()}</TableCell>
-                  <TableCell>{order.fullName}</TableCell>
-                  <TableCell>{order.contactNumber}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="body2">{order.fullName}</Typography>
+                      <CopyButton text={order.fullName} title="Copy Name" />
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography variant="body2">{order.contactNumber}</Typography>
+                      <CopyButton text={order.contactNumber} title="Copy Contact Number" />
+                    </Stack>
+                  </TableCell>
                   <TableCell>{order.paymentMode || "N/A"}</TableCell>
+                  <TableCell><Chip label={order.orderCycle} color={statusColors[order.orderCycle] || "default"} size="small" /></TableCell>
                   <TableCell>
-                    <Chip
-                      label={order.orderCycle}
-                      color={statusColors[order.orderCycle] || "default"}
-                      size="small"
-                    />
+                    <Chip label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"} color={agentNames.includes(order.fullName) ? "primary" : "secondary"} size="small" variant="outlined" />
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"}
-                      color={agentNames.includes(order.fullName) ? "primary" : "secondary"}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title="Update Cycle">
-                      <IconButton
-                        onClick={() => openCycleModal(order)}
-                        size="small"
-                        sx={{ color: "#8bc34a", mr: 1 }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="View Details">
-                      <IconButton 
-                        onClick={() => openDetailModal(order)}
-                        size="small"
-                      >
-                        <Visibility />
-                      </IconButton>
-                    </Tooltip>
+                    <Tooltip title="Update Cycle"><IconButton onClick={() => openCycleModal(order)} size="small" sx={{ color: "#8bc34a", mr: 1 }}><Edit /></IconButton></Tooltip>
+                    <Tooltip title="View Details"><IconButton onClick={() => openDetailModal(order)} size="small"><Visibility /></IconButton></Tooltip>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell colSpan={9} align="center">
-                  <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>
-                    No orders found
-                  </Typography>
+                  <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>No orders found</Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -477,34 +297,12 @@ const Orders = () => {
         </Table>
       </TableContainer>
 
-      {/* Pagination */}
       <Stack spacing={2} alignItems="center" sx={{ mt: 2 }}>
-        <Pagination
-          count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)}
-          page={page}
-          onChange={handlePageChange}
-          color="primary"
-          disabled={loading}
-        />
+        <Pagination count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)} page={page} onChange={handlePageChange} color="primary" disabled={loading} />
       </Stack>
 
-      {/* Modals */}
-      {isDetailModalOpen && (
-        <OrderDetailsModal
-          orderId={selectedOrderId}
-          onClose={() => setIsDetailModalOpen(false)}
-        />
-      )}
-
-      {isCycleModalOpen && (
-        <CycleUpdateModal
-          open={isCycleModalOpen}
-          onClose={closeCycleModal}
-          orderId={selectedOrderId}
-          currentCycle={selectedOrderCycle}
-          onUpdated={handleCycleUpdated}
-        />
-      )}
+      {isDetailModalOpen && (<OrderDetailsModal orderId={selectedOrderId} onClose={() => setIsDetailModalOpen(false)} />)}
+      {isCycleModalOpen && (<CycleUpdateModal open={isCycleModalOpen} onClose={closeCycleModal} orderId={selectedOrderId} currentCycle={selectedOrderCycle} onUpdated={handleCycleUpdated} />)}
     </div>
   );
 };

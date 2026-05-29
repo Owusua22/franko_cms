@@ -1,189 +1,140 @@
 // src/services/tokenMonitor.js
-import { isTokenExpired } from '../Redux/Slice/AxiosInstance';
+import { isTokenExpired } from "../Redux/Slice/AxiosInstance";
+
 
 class TokenMonitor {
   constructor() {
-    this.tokenCheckInterval = null;
-    this.inactivityCheckInterval = null;
     this.dispatch = null;
+
+    this.onSilentRefresh = null;   // async () => {}
+    this.onSessionExpired = null;  // () => {}
+
+    this.tokenInterval = null;
     this.isRefreshing = false;
-    this.lastActivityUpdate = Date.now();
-    
-    // Constants
-    this.TOKEN_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
-    this.INACTIVITY_CHECK_INTERVAL = 60 * 1000; // 1 minute
-    this.INACTIVITY_TIMEOUT = 3 * 60 * 60 * 1000; // 3 hours
-    this.ACTIVITY_THROTTLE = 30 * 1000; // 30 seconds
+
+    // Activity
+    this.lastActivityMem = Date.now();
+    this.activityHandler = null;
+    this.events = ["mousedown", "keydown", "scroll", "touchstart", "click", "mousemove"];
+
+    // Tune these
+    this.TOKEN_CHECK_INTERVAL = 30 * 1000;  // check every 30 seconds
+    this.ACTIVITY_WRITE_THROTTLE = 10 * 1000; // write lastActivity at most every 10s
+    this.INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes inactivity -> treat as inactive
   }
 
-  /**
-   * Initialize the token monitor
-   */
-  init(dispatch, refreshCallback, logoutCallback) {
+  init({ dispatch, onSilentRefresh, onSessionExpired }) {
     this.dispatch = dispatch;
-    this.refreshCallback = refreshCallback;
-    this.logoutCallback = logoutCallback;
-    
-    this.startTokenMonitoring();
-    this.startInactivityMonitoring();
+    this.onSilentRefresh = onSilentRefresh;
+    this.onSessionExpired = onSessionExpired;
+
+    this.ensureActivityKeys();
     this.setupActivityListeners();
-    
-    console.log('🔐 Token monitor initialized');
+    this.start();
+
+    // immediate run
+    this.checkNow();
   }
 
-  /**
-   * Start monitoring token expiry
-   */
-  startTokenMonitoring() {
-    this.tokenCheckInterval = setInterval(() => {
-      this.checkAndRefreshToken();
-    }, this.TOKEN_CHECK_INTERVAL);
+  ensureActivityKeys() {
+    const now = Date.now();
+    if (!localStorage.getItem("loginTime")) localStorage.setItem("loginTime", String(now));
+    if (!localStorage.getItem("lastActivity")) localStorage.setItem("lastActivity", String(now));
   }
 
-  /**
-   * Start monitoring user inactivity
-   */
-  startInactivityMonitoring() {
-    this.inactivityCheckInterval = setInterval(() => {
-      this.checkInactivity();
-    }, this.INACTIVITY_CHECK_INTERVAL);
+  start() {
+    this.stop();
+    this.tokenInterval = setInterval(() => this.checkNow(), this.TOKEN_CHECK_INTERVAL);
   }
 
-  /**
-   * Setup activity listeners
-   */
+  stop() {
+    if (this.tokenInterval) {
+      clearInterval(this.tokenInterval);
+      this.tokenInterval = null;
+    }
+  }
+
+  cleanup() {
+    this.stop();
+    this.removeActivityListeners();
+  }
+
   setupActivityListeners() {
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click', 'mousemove'];
-    
-    const updateActivity = () => {
+    this.removeActivityListeners();
+
+    this.activityHandler = () => {
       const now = Date.now();
-      
-      // Throttle updates
-      if (now - this.lastActivityUpdate > this.ACTIVITY_THROTTLE) {
-        this.lastActivityUpdate = now;
-        this.updateLastActivity();
+      if (now - this.lastActivityMem < this.ACTIVITY_WRITE_THROTTLE) return;
+
+      this.lastActivityMem = now;
+      try {
+        localStorage.setItem("lastActivity", String(now));
+      } catch (e) {
+        console.error("Failed writing lastActivity", e);
       }
     };
 
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, { passive: true });
+    this.events.forEach((ev) => {
+      document.addEventListener(ev, this.activityHandler, { passive: true });
     });
   }
 
-  /**
-   * Update last activity timestamp
-   */
-  updateLastActivity() {
+  removeActivityListeners() {
+    if (!this.activityHandler) return;
+    this.events.forEach((ev) => document.removeEventListener(ev, this.activityHandler));
+    this.activityHandler = null;
+  }
+
+  getAccessTokenFromStorage() {
+    const raw = localStorage.getItem("user");
+    if (!raw) return null;
     try {
-      localStorage.setItem('lastActivity', Date.now().toString());
-    } catch (error) {
-      console.error('Failed to update last activity:', error);
+      const user = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return user?.accessToken || null;
+    } catch {
+      return null;
     }
   }
 
-  /**
-   * Check token expiry and refresh if needed
-   */
-  async checkAndRefreshToken() {
-    if (this.isRefreshing) {
-      console.log('Token refresh already in progress...');
+  isInactive() {
+    const loginTime = Number(localStorage.getItem("loginTime") || 0);
+    const lastActivity = Number(localStorage.getItem("lastActivity") || 0);
+    const last = lastActivity || loginTime || Date.now();
+    return Date.now() - last >= this.INACTIVITY_TIMEOUT;
+  }
+
+  async checkNow() {
+    if (this.isRefreshing) return;
+
+    const token = this.getAccessTokenFromStorage();
+    if (!token) return;
+
+    const expired = isTokenExpired(token);
+    if (!expired) return;
+
+    const inactive = this.isInactive();
+
+    if (inactive) {
+      // token expired + inactive => logout + redirect
+      if (this.onSessionExpired) this.onSessionExpired();
+      this.cleanup();
       return;
     }
 
+    // token expired + active => silent refresh
+    if (!this.onSilentRefresh) return;
+
     try {
-      const userStr = localStorage.getItem('user');
-      if (!userStr) return;
-
-      let user;
-      try {
-        user = typeof userStr === 'object' ? userStr : JSON.parse(userStr);
-      } catch {
-        console.warn('Invalid user data in localStorage');
-        return;
-      }
-
-      const token = user?.accessToken;
-      if (!token) return;
-
-      // Check if token is expired or about to expire
-      if (isTokenExpired(token)) {
-        console.log('🔄 Token expired/expiring, refreshing...');
-        this.isRefreshing = true;
-        
-        if (this.refreshCallback) {
-          await this.refreshCallback();
-        }
-        
-        this.isRefreshing = false;
-      }
-    } catch (error) {
-      console.error('Error in token check:', error);
+      this.isRefreshing = true;
+      await this.onSilentRefresh();
+    } catch (e) {
+      console.error("Silent refresh failed, expiring session", e);
+      if (this.onSessionExpired) this.onSessionExpired();
+      this.cleanup();
+    } finally {
       this.isRefreshing = false;
     }
   }
-
-  /**
-   * Check for user inactivity
-   */
-  checkInactivity() {
-    try {
-      const lastActivity = localStorage.getItem('lastActivity');
-      const loginTime = localStorage.getItem('loginTime');
-      
-      if (!loginTime) return;
-
-      const lastActiveTime = lastActivity ? Number(lastActivity) : Number(loginTime);
-      const inactiveTime = Date.now() - lastActiveTime;
-
-      if (inactiveTime > this.INACTIVITY_TIMEOUT) {
-        console.log('⏱️ User inactive for 3 hours, logging out...');
-        this.handleInactivityLogout();
-      }
-    } catch (error) {
-      console.error('Error checking inactivity:', error);
-    }
-  }
-
-  /**
-   * Handle logout due to inactivity
-   */
-  handleInactivityLogout() {
-    if (this.logoutCallback) {
-      this.logoutCallback();
-    }
-    
-    this.cleanup();
-    
-    // Redirect to login if not already there
-    if (window.location.pathname !== '/admin/login') {
-      window.location.href = '/admin/login';
-    }
-  }
-
-  /**
-   * Cleanup intervals and listeners
-   */
-  cleanup() {
-    if (this.tokenCheckInterval) {
-      clearInterval(this.tokenCheckInterval);
-      this.tokenCheckInterval = null;
-    }
-    
-    if (this.inactivityCheckInterval) {
-      clearInterval(this.inactivityCheckInterval);
-      this.inactivityCheckInterval = null;
-    }
-    
-    console.log('🔐 Token monitor cleaned up');
-  }
-
-  /**
-   * Manually trigger token refresh
-   */
-  async manualRefresh() {
-    await this.checkAndRefreshToken();
-  }
 }
 
-// Export singleton instance
 export const tokenMonitor = new TokenMonitor();

@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
+
 import { tokenMonitor } from "./services/tokenMonitor";
 import { silentUserTokenRefresh, logoutUser } from "./Redux/Slice/userSlice";
 
-/* ==================== PAGES ==================== */
+import NoInternetPage from "./Pages/NoInternet";
+import ScrollToTop from "./Pages/ScrollToTop";
+import UserLogin from "./Pages/AdminAuth/UserLogin";
+import AuthGuard from "./Component/AuthGuard";
 
+/* ==================== PAGES ==================== */
 import AdvertisementPage from "./Pages/AdminPages/Advertisement";
 import AdminPage from "./Pages/AdminPages/AdminPanel";
 import Dashboard from "./Pages/AdminPages/Dashboard";
@@ -39,33 +44,24 @@ import DevShowroom from "./Pages/Developer/Dev/DevShowroom";
 import DevBanners from "./Pages/Developer/Dev/DevBanners";
 import DevUsers from "./Pages/Developer/Dev/DevUsers";
 
-
 import DigiPage from "./Pages/DigitalMarketer/DigiPage";
 import DigiOrders from "./Pages/DigitalMarketer/Digi/DigiOrders";
 import DigiProducts from "./Pages/DigitalMarketer/Digi/DigiProducts";
 
-import UserLogin from "./Pages/AdminAuth/UserLogin";
-import NoInternetPage from "./Pages/NoInternet";
-import ScrollToTop from "./Pages/ScrollToTop";
-
 /* ==================== ROUTE CONFIG ==================== */
 const routes = [
-  // ADMIN
   { path: "/admin/dashboard", layout: AdminPage, page: Dashboard },
   { path: "/admin/orders", layout: AdminPage, page: Orders },
   { path: "/admin/products", layout: AdminPage, page: AdminProducts },
   { path: "/admin/brands", layout: AdminPage, page: Adminbrands },
   { path: "/admin/categories", layout: AdminPage, page: AdminCategory },
   { path: "/admin/showroom", layout: AdminPage, page: AdminShowroom },
-
   { path: "/admin/banner", layout: AdminPage, page: AdvertisementPage },
   { path: "/admin/branch-products", layout: AdminPage, page: BranchProductsPage },
 
-  // FULFILLMENT
   { path: "/fulfillment/dashboard", layout: FulfillmentPage, page: FulfilmentsDashboard },
   { path: "/fulfillment/orders", layout: FulfillmentPage, page: FulfilmentsOrder },
 
-  // CONTENT
   { path: "/content/dashboard", layout: ContentPage, page: ContentDashboard },
   { path: "/content/products", layout: ContentPage, page: ContentProduct },
   { path: "/content/banner", layout: ContentPage, page: ContentBanner },
@@ -74,7 +70,6 @@ const routes = [
   { path: "/content/category", layout: ContentPage, page: ContentCategory },
   { path: "/content/branch-products", layout: ContentPage, page: ContentBranchProduct },
 
-  // DEVELOPER
   { path: "/dev/dashboard", layout: DevPage, page: DevDashboard },
   { path: "/dev/brands", layout: DevPage, page: DevBrands },
   { path: "/dev/categories", layout: DevPage, page: DevCategory },
@@ -84,8 +79,6 @@ const routes = [
   { path: "/dev/banner", layout: DevPage, page: DevBanners },
   { path: "/dev/users", layout: DevPage, page: DevUsers },
 
-
-  // DIGITAL MARKETER
   { path: "/digi/orders", layout: DigiPage, page: DigiOrders },
   { path: "/digi/products", layout: DigiPage, page: DigiProducts },
 ];
@@ -95,39 +88,26 @@ function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const dispatch = useDispatch();
 
-  /* ──────────────────────────────────────────
-     Initialize Token Monitor
-  ────────────────────────────────────────── */
+  /* Initialize Token Monitor */
   useEffect(() => {
-    const handleRefresh = async () => {
-      await silentUserTokenRefresh(dispatch);
-    };
+    const handleRefresh = () => silentUserTokenRefresh(dispatch);
+    const handleLogout = () => dispatch(logoutUser());
 
-    const handleLogout = () => {
-      dispatch(logoutUser());
-    };
-
-    // Initialize token monitor with callbacks
     tokenMonitor.init(dispatch, handleRefresh, handleLogout);
 
-    // Cleanup on unmount
-    return () => {
-      tokenMonitor.cleanup();
-    };
+    return () => tokenMonitor.cleanup();
   }, [dispatch]);
 
-  /* ──────────────────────────────────────────
-     Network Status Monitoring
-  ────────────────────────────────────────── */
+  /* Network Status Monitoring */
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('📡 Back online');
+      console.log("📡 Back online");
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('📡 Went offline');
+      console.log("📡 Went offline");
     };
 
     window.addEventListener("online", handleOnline);
@@ -139,41 +119,31 @@ function App() {
     };
   }, []);
 
-  /* ──────────────────────────────────────────
-     Show No Internet Page if Offline
-  ────────────────────────────────────────── */
   if (!isOnline) {
     return <NoInternetPage />;
   }
 
-  /* ──────────────────────────────────────────
-     Render Routes
-  ────────────────────────────────────────── */
   return (
     <>
       <ScrollToTop />
-
       <Routes>
-        {/* Default Route */}
         <Route path="/" element={<Navigate to="/admin/login" replace />} />
-        
-        {/* Login Route */}
         <Route path="/admin/login" element={<UserLogin />} />
 
-        {/* Dynamic Routes */}
         {routes.map(({ path, layout: Layout, page: Page }) => (
           <Route
             key={path}
             path={path}
             element={
-              <Layout>
-                <Page />
-              </Layout>
+              <AuthGuard>
+                <Layout>
+                  <Page />
+                </Layout>
+              </AuthGuard>
             }
           />
         ))}
 
-        {/* Fallback Route */}
         <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </>
