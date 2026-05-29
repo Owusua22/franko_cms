@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Layout, Menu, Button, Typography, Modal, Avatar, Dropdown, Tooltip } from 'antd';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+// ⚠️ Adjust this import path based on where this component is located relative to your Redux folder
+import { logoutUser } from '../../Redux/Slice/userSlice'; 
 import {
   ShoppingCartOutlined,
   AppstoreAddOutlined,
@@ -23,19 +26,30 @@ const { Title } = Typography;
 const ContentHome = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const navigate = useNavigate();
+  
+  const dispatch = useDispatch();
   const location = useLocation();
 
-  const user = localStorage.getItem('user');
-  const fullName = user?.fullName || 'Guest';
-  const userposition = user?.position || 'Admin';
+  // ✅ Grab user directly from Redux store (which is hydrated from localStorage)
+  const currentUser = useSelector((state) => state.user?.currentUser);
+  
+  // Fallback to localStorage just in case Redux hasn't hydrated yet
+  const storedUser = localStorage.getItem('user');
+  let localUser = null;
+  try {
+    localUser = storedUser ? JSON.parse(storedUser) : null;
+  } catch (e) {
+    localUser = null;
+  }
+
+  const user = currentUser || localUser;
+  const fullName = user?.fullName || user?.FullName || 'Guest';
+  const userposition = user?.position || user?.role || 'Admin';
 
   const toggleSidebar = () => setCollapsed(!collapsed);
   const handleLogout = () => setShowModal(true);
-
   const cancelLogout = () => setShowModal(false);
 
-  // ✅ FIXED: Menu items
   const userMenu = {
     items: [
       { key: 'profile', icon: <UserOutlined />, label: 'Profile Settings' },
@@ -46,7 +60,7 @@ const ContentHome = ({ children }) => {
         icon: <LogoutOutlined />,  
         label: 'Logout', 
         danger: true, 
-        onClick: handleLogout  // Opens modal, not direct logout
+        onClick: handleLogout 
       },
     ],
   };
@@ -182,7 +196,7 @@ const ContentHome = ({ children }) => {
         </Content>
       </Layout>
 
-      {/* ✅ FIXED: onOk returns Promise to ensure navigation completes */}
+      {/* Logout Confirmation Modal */}
       <Modal
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -192,10 +206,20 @@ const ContentHome = ({ children }) => {
         }
         open={showModal}
         onOk={() => {
-          localStorage.removeItem('user');
-          setShowModal(false);
-          navigate('/admin/login');
-          return Promise.resolve(); // ✅ Ensures modal waits
+          return new Promise((resolve) => {
+            // 1. Dispatch the Redux action. 
+            // This sets currentUser to null, isAuthenticated to false, and calls clearStorage()
+            dispatch(logoutUser());
+            
+            // 2. Close the modal
+            setShowModal(false);
+            
+            // 3. Force a full page reload to the login route.
+            // This guarantees any Protected Route wrappers or lingering Context states are destroyed.
+            window.location.href = '/admin/login';
+            
+            resolve();
+          });
         }}
         onCancel={cancelLogout}
         okText="Yes, Logout"

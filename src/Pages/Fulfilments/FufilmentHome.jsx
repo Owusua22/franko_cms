@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Layout,
   Menu,
@@ -9,7 +10,9 @@ import {
   Dropdown,
   Space,
 } from 'antd';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+// ⚠️ Adjust this import path based on where this component is located relative to your Redux folder
+import { logoutUser } from '../../Redux/Slice/userSlice'; 
 import {
   HomeOutlined,
   MenuFoldOutlined,
@@ -28,19 +31,29 @@ const FulfilmentHome = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Get user data safely
+  // ✅ Grab user directly from Redux store (which is hydrated from localStorage)
+  const currentUser = useSelector((state) => state.user?.currentUser);
+  
+  // Fallback to localStorage just in case Redux hasn't hydrated yet
   const storedUser = localStorage.getItem('user');
-  const user = storedUser ? (storedUser) : null;
+  let localUser = null;
+  try {
+    localUser = storedUser ? JSON.parse(storedUser) : null;
+  } catch (e) {
+    localUser = null;
+  }
 
-  const fullName = user?.fullName || 'Guest';
+  const user = currentUser || localUser;
+  const fullName = user?.fullName || user?.FullName || 'Guest';
 
   const toggleSidebar = () => {
     setCollapsed(!collapsed);
   };
 
-  // Logout Modal
   const showLogoutModal = () => {
     setIsLogoutModalVisible(true);
   };
@@ -49,15 +62,20 @@ const FulfilmentHome = ({ children }) => {
     setIsLogoutModalVisible(false);
   };
 
-  // Logout Function
+  // ✅ FIXED: Dispatch Redux logout and force hard reload
   const handleLogout = () => {
-    localStorage.removeItem('user');
-
-    // Close modal
-    setIsLogoutModalVisible(false);
-
-    // Navigate to login page
-    navigate('/admin/login', { replace: true });
+    return new Promise((resolve) => {
+      // 1. Dispatch the Redux action (clears state & localStorage)
+      dispatch(logoutUser());
+      
+      // 2. Close modal
+      setIsLogoutModalVisible(false);
+      
+      // 3. Force full page reload to clear all memory/contexts
+      window.location.href = '/admin/login';
+      
+      resolve();
+    });
   };
 
   // User dropdown menu
@@ -143,6 +161,7 @@ const FulfilmentHome = ({ children }) => {
         <Menu
           mode="inline"
           theme="dark"
+          selectedKeys={[location.pathname]}
           style={{
             marginTop: 10,
             background: 'transparent',
@@ -150,7 +169,7 @@ const FulfilmentHome = ({ children }) => {
           }}
         >
           <Menu.Item
-            key="dashboard"
+            key="/fulfillment/dashboard"
             icon={<HomeOutlined />}
             style={{
               margin: '4px 12px',
@@ -166,7 +185,7 @@ const FulfilmentHome = ({ children }) => {
           </Menu.Item>
 
           <Menu.Item
-            key="orders"
+            key="/fulfillment/orders"
             icon={<ShoppingCartOutlined />}
             style={{
               margin: '4px 12px',
@@ -327,6 +346,7 @@ const FulfilmentHome = ({ children }) => {
         cancelText="Cancel"
         centered
         okButtonProps={{
+          danger: true,
           style: {
             background: '#DC2626',
             borderColor: '#DC2626',
