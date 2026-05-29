@@ -13,81 +13,56 @@ const LAST_ACTIVITY_KEY = "lastActivity";
    STORAGE HELPERS
 ═══════════════════════════════════════════════ */
 
-/**
- * Safely get data from localStorage
- */
 const safeGetFromStorage = (key) => {
   try {
     const data = localStorage.getItem(key);
-    
     if (!data) return null;
-    
-    if (typeof data === "object" && data !== null) {
-      return data;
-    }
-    
+    if (typeof data === "object" && data !== null) return data;
     if (typeof data === "string" && data === "[object Object]") {
-      console.warn(`Invalid object string found for key "${key}". Cleaning up.`);
       localStorage.removeItem(key);
       return null;
     }
-    
     if (typeof data === "string") {
       try {
         return JSON.parse(data);
-      } catch (parseError) {
-        console.warn(`Failed to parse JSON for key "${key}":`, parseError);
+      } catch {
         return null;
       }
     }
-    
     return data;
-  } catch (e) {
-    console.warn(`Failed to get ${key} from localStorage:`, e);
+  } catch {
     return null;
   }
 };
 
-/**
- * Safely set data to localStorage
- */
 const safeSetToStorage = (key, value) => {
   try {
     if (!value) {
       localStorage.removeItem(key);
     } else {
-      localStorage.setItem(key, value);
+      const stringValue = typeof value === "string" ? value : JSON.stringify(value);
+      localStorage.setItem(key, stringValue);
     }
   } catch (e) {
     console.error(`Failed to persist ${key}:`, e);
   }
 };
 
-/**
- * Load user from storage
- */
 const loadFromStorage = () => {
   try {
     const data = safeGetFromStorage(USER_KEY);
-    
     if (!data) return null;
-    
     if (typeof data === "object" && data !== null) {
       if (data.contactNumber || data.contact || data.userAccountNumber || data.accessToken) {
         return data;
       }
     }
-    
     return null;
-  } catch (e) {
-    console.warn("Failed to load user from storage:", e);
+  } catch {
     return null;
   }
 };
 
-/**
- * Save user to storage
- */
 const saveToStorage = (user) => {
   try {
     if (!user) {
@@ -102,35 +77,31 @@ const saveToStorage = (user) => {
       safeSetToStorage(USER_KEY, userToSave);
       
       const now = Date.now();
-      safeSetToStorage(LOGIN_TIME_KEY, now);
-      safeSetToStorage(LAST_ACTIVITY_KEY, now);
+      safeSetToStorage(LOGIN_TIME_KEY, String(now));
+      safeSetToStorage(LAST_ACTIVITY_KEY, String(now));
     }
   } catch (e) {
     console.error("Failed to persist user:", e);
   }
 };
 
-/**
- * Clear all user storage
- */
 const clearStorage = () => {
   try {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(LOGIN_TIME_KEY);
     localStorage.removeItem(LAST_ACTIVITY_KEY);
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
   } catch (e) {
     console.error("Failed to clear user storage:", e);
   }
 };
 
-/**
- * Update last activity time
- */
 const updateLastActivityTime = () => {
   try {
     const user = loadFromStorage();
     if (user) {
-      safeSetToStorage(LAST_ACTIVITY_KEY, Date.now());
+      safeSetToStorage(LAST_ACTIVITY_KEY, String(Date.now()));
     }
   } catch (e) {
     console.error("Failed to update activity time:", e);
@@ -141,9 +112,6 @@ const updateLastActivityTime = () => {
    VALIDATION HELPERS
 ═══════════════════════════════════════════════ */
 
-/**
- * Validate user data structure
- */
 const validateUserData = (userData) => {
   if (!userData || typeof userData !== 'object') {
     return false;
@@ -155,9 +123,6 @@ const validateUserData = (userData) => {
   return hasContact;
 };
 
-/**
- * Safe JSON parser
- */
 const safeParseJSON = (raw) => {
   if (typeof raw === "object" && raw !== null) return raw;
   try {
@@ -171,9 +136,6 @@ const safeParseJSON = (raw) => {
    BACKEND COMMUNICATION HELPERS
 ═══════════════════════════════════════════════ */
 
-/**
- * Base backend call through Lambda
- */
 const callBackend = async ({
   endpoint,
   method = "GET",
@@ -199,9 +161,6 @@ const callBackend = async ({
   return res;
 };
 
-/**
- * Build authorization headers
- */
 const buildAuthHeaders = (providedToken = null) => {
   const stored = loadFromStorage();
   const accessToken = providedToken || stored?.accessToken;
@@ -219,9 +178,6 @@ const buildAuthHeaders = (providedToken = null) => {
 let refreshPromise = null;
 let isRefreshing = false;
 
-/**
- * Refresh user token via backend
- */
 const refreshUserToken = async (refreshToken) => {
   const headers = { "Content-Type": "application/json" };
 
@@ -246,9 +202,6 @@ const refreshUserToken = async (refreshToken) => {
   return data;
 };
 
-/**
- * Silent token refresh (exported for token monitor)
- */
 export const silentUserTokenRefresh = async (dispatch) => {
   if (refreshPromise) {
     return refreshPromise;
@@ -304,9 +257,6 @@ export const silentUserTokenRefresh = async (dispatch) => {
   }
 };
 
-/**
- * Request with automatic token refresh
- */
 const requestWithAutoRefresh = async ({
   endpoint,
   method = "GET",
@@ -338,7 +288,6 @@ const requestWithAutoRefresh = async ({
     return res;
   }
 
-  // Handle 401: Try to refresh token
   if (dispatch) {
     const newAccessToken = await silentUserTokenRefresh(dispatch);
     if (newAccessToken) {
@@ -356,7 +305,6 @@ const requestWithAutoRefresh = async ({
     }
   }
 
-  // Fallback refresh attempt
   const refreshToken = stored?.refreshToken;
   if (!refreshToken || typeof refreshToken !== 'string' || refreshToken.trim() === '') {
     clearStorage();
@@ -399,9 +347,6 @@ const requestWithAutoRefresh = async ({
    ASYNC THUNKS
 ═══════════════════════════════════════════════ */
 
-/**
- * Create new user
- */
 export const createUser = createAsyncThunk(
   "users/createUser",
   async (userData, { rejectWithValue }) => {
@@ -439,9 +384,6 @@ export const createUser = createAsyncThunk(
   }
 );
 
-/**
- * Fetch all users
- */
 export const fetchUsers = createAsyncThunk(
   "users/fetchUsers",
   async (_, { rejectWithValue, dispatch }) => {
@@ -477,9 +419,6 @@ export const fetchUsers = createAsyncThunk(
   }
 );
 
-/**
- * Get user by contact number
- */
 export const getUserById = createAsyncThunk(
   "users/getUserById",
   async ({ contactNumber, accessToken = null }, { rejectWithValue, dispatch }) => {
@@ -533,9 +472,6 @@ export const getUserById = createAsyncThunk(
   }
 );
 
-/**
- * Login user
- */
 export const loginUser = createAsyncThunk(
   "users/LogIn",
   async ({ contact, password }, { dispatch, rejectWithValue }) => {
@@ -588,7 +524,6 @@ export const loginUser = createAsyncThunk(
         });
       }
 
-      // Require password change
       if (loginStatus === false) {
         const loginResult = {
           contactNumber: contact,
@@ -602,7 +537,6 @@ export const loginUser = createAsyncThunk(
         return loginResult;
       }
 
-      // Normal login
       const tempUser = {
         contactNumber: contact,
         contact: contact,
@@ -660,9 +594,6 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-/**
- * Update user password
- */
 export const updateUserPassword = createAsyncThunk(
   "users/updateUserPassword",
   async ({ contactNumber, oldPassword, newPassword }, { rejectWithValue, dispatch }) => {
@@ -712,9 +643,6 @@ export const updateUserPassword = createAsyncThunk(
   }
 );
 
-/**
- * Update account status
- */
 export const updateAccountStatus = createAsyncThunk(
   "users/updateAccountStatus",
   async (_, { getState, rejectWithValue, dispatch }) => {
@@ -764,9 +692,6 @@ export const updateAccountStatus = createAsyncThunk(
   }
 );
 
-/**
- * Forgot password
- */
 export const forgotPassword = createAsyncThunk(
   "users/forgotPassword",
   async ({ contactNumber, email }, { rejectWithValue }) => {
@@ -806,9 +731,6 @@ export const forgotPassword = createAsyncThunk(
   }
 );
 
-/**
- * Reset password
- */
 export const resetPassword = createAsyncThunk(
   "users/resetPassword",
   async ({ contactNumber, token, newPassword }, { rejectWithValue }) => {
@@ -882,6 +804,7 @@ const userSlice = createSlice({
       state.currentUserDetails = null;
       state.isAuthenticated = false;
       state.error = null;
+      state.users = [];
       clearStorage();
     },
     
@@ -952,7 +875,6 @@ const userSlice = createSlice({
   
   extraReducers: (builder) => {
     builder
-      // ── createUser ──
       .addCase(createUser.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -976,7 +898,6 @@ const userSlice = createSlice({
         state.error = action.payload?.message || "Registration failed.";
       })
 
-      // ── fetchUsers ──
       .addCase(fetchUsers.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -996,7 +917,6 @@ const userSlice = createSlice({
         }
       })
 
-      // ── getUserById ──
       .addCase(getUserById.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1018,7 +938,6 @@ const userSlice = createSlice({
         }
       })
 
-      // ── loginUser ──
       .addCase(loginUser.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1030,10 +949,9 @@ const userSlice = createSlice({
           state.currentUserDetails = action.payload;
           state.isAuthenticated = true;
           
-          // Initialize activity tracking
           const now = Date.now();
-          localStorage.setItem('loginTime', now.toString());
-          localStorage.setItem('lastActivity', now.toString());
+          localStorage.setItem('loginTime', String(now));
+          localStorage.setItem('lastActivity', String(now));
         }
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -1043,7 +961,6 @@ const userSlice = createSlice({
         clearStorage();
       })
 
-      // ── updateUserPassword ──
       .addCase(updateUserPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1070,7 +987,6 @@ const userSlice = createSlice({
         }
       })
 
-      // ── updateAccountStatus ──
       .addCase(updateAccountStatus.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1086,7 +1002,6 @@ const userSlice = createSlice({
         state.error = action.payload?.message || "Status update failed.";
       })
 
-      // ── forgotPassword ──
       .addCase(forgotPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1099,7 +1014,6 @@ const userSlice = createSlice({
         state.error = action.payload?.message || "Password reset request failed.";
       })
 
-      // ── resetPassword ──
       .addCase(resetPassword.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -1113,10 +1027,6 @@ const userSlice = createSlice({
       });
   },
 });
-
-/* ═══════════════════════════════════════════════
-   EXPORTS
-═══════════════════════════════════════════════ */
 
 export const {
   logoutUser,

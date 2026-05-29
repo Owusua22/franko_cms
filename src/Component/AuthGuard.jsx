@@ -1,15 +1,22 @@
-
-import { useSelector } from "react-redux";
+// src/Component/AuthGuard.jsx
 import { Navigate, useLocation } from "react-router-dom";
-import { selectIsAuthenticated } from "../Redux/Slice/authSelectors";
+import { useSelector } from "react-redux";
 
-export default function AuthGuard({ children }) {
-  const isAuthed = useSelector(selectIsAuthenticated);
+const AuthGuard = ({ children }) => {
+  const { currentUser, isAuthenticated } = useSelector((state) => state.user);
   const location = useLocation();
 
-  if (!isAuthed) {
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+  // Prevent checking on login page (avoid infinite loop)
+  if (location.pathname === "/admin/login") {
+    return children;
+  }
+
+  // Check authentication
+  if (!currentUser || !isAuthenticated || !currentUser.accessToken) {
+    return <Navigate to="/admin/login" replace />;
   }
 
   return children;
-}
+};
+
+export default AuthGuard;

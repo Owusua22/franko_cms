@@ -5,7 +5,7 @@ import {
   Select, MenuItem, Chip, CircularProgress, Pagination, Stack, Typography,
   Box, Grid
 } from "@mui/material";
-import { Visibility, ContentCopy, Edit } from "@mui/icons-material";
+import { Visibility, Edit, ContentCopy } from "@mui/icons-material";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
 import { useDispatch, useSelector } from "react-redux";
@@ -17,11 +17,13 @@ const Orders = () => {
   const dispatch = useDispatch();
   const { orders = [], loading } = useSelector((state) => state.orders);
 
+  // Agent names for filtering (Customer Type)
   const agentNames = [
     "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah", "Hannah Jethro", 
     "Sadam Ansamah", "Judith Tsegah", "Dorcas Kumaku", "Roseline Boateng"
   ];
 
+  // State management
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [searchText, setSearchText] = useState("");
   const [filterSource, setFilterSource] = useState("all");
@@ -39,18 +41,6 @@ const Orders = () => {
 
   const ITEMS_PER_PAGE = 10;
 
-  const handleCopy = useCallback((text) => {
-    if (text) navigator.clipboard.writeText(text);
-  }, []);
-
-  const CopyButton = ({ text, title }) => (
-    <Tooltip title={title}>
-      <IconButton size="small" onClick={() => handleCopy(text)} sx={{ p: 0.5 }}>
-        <ContentCopy sx={{ fontSize: 16 }} />
-      </IconButton>
-    </Tooltip>
-  );
-
   const fetchCurrentMonthOrders = useCallback(() => {
     const now = dayjs();
     const from = now.startOf("month").format("YYYY-MM-DD");
@@ -62,6 +52,7 @@ const Orders = () => {
     fetchCurrentMonthOrders();
   }, [fetchCurrentMonthOrders]);
 
+  // Memoized grouped orders
   const groupedOrders = useMemo(() => {
     return Object.values(orders.reduce((acc, order) => {
       if (!acc[order.orderCode]) {
@@ -73,12 +64,16 @@ const Orders = () => {
     }, {}));
   }, [orders]);
 
+  // Memoized unique payment modes
   const uniquePaymentModes = useMemo(() => {
     const modes = new Set();
-    groupedOrders.forEach(order => { if (order.paymentMode) modes.add(order.paymentMode); });
+    groupedOrders.forEach(order => {
+      if (order.paymentMode) modes.add(order.paymentMode);
+    });
     return Array.from(modes).sort();
   }, [groupedOrders]);
 
+  // Optimized filtering
   const filteredOrders = useMemo(() => {
     return groupedOrders.filter(order => {
       const matchesSearch = !searchText || 
@@ -90,7 +85,9 @@ const Orders = () => {
         (filterSource === "website" && order.orderCode.startsWith("ORD")) ||
         (filterSource === "app" && !order.orderCode.startsWith("ORD"));
 
-      const matchesPaymentMode = filterPaymentMode === "all" || order.paymentMode === filterPaymentMode;
+      const matchesPaymentMode = filterPaymentMode === "all" || 
+        order.paymentMode === filterPaymentMode;
+
       const matchesAgentType = filterAgentType === "all" ||
         (filterAgentType === "agents" && agentNames.includes(order.fullName)) ||
         (filterAgentType === "non-agents" && !agentNames.includes(order.fullName));
@@ -101,6 +98,7 @@ const Orders = () => {
     }).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
   }, [groupedOrders, searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus, agentNames]);
 
+  // Memoized status counts
   const statusCounts = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
       const status = order.orderCycle || "Unknown";
@@ -109,6 +107,7 @@ const Orders = () => {
     }, {});
   }, [filteredOrders]);
 
+  // Memoized paginated orders
   const paginatedOrders = useMemo(() => {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -145,7 +144,7 @@ const Orders = () => {
   }, [selectAll, paginatedOrders]);
 
   const exportToExcel = useCallback(() => {
-    if (!filteredOrders.length) return;
+    if (!filteredOrders.length) { alert("No orders to export"); return; }
     const formatted = filteredOrders.map(order => ({
       "Order Code": order.orderCode, "Order Date": order.orderDate,
       "Full Name": order.fullName, "Contact Number": order.contactNumber,
@@ -195,23 +194,85 @@ const Orders = () => {
     setPage(1);
   }, []);
 
+  // Copy to clipboard handler
+  const handleCopy = useCallback((text) => {
+    if (text) navigator.clipboard.writeText(text);
+  }, []);
+
+  // Reset page when filters change
   useEffect(() => { setPage(1); }, [searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus]);
+
+  // Reusable Copy Button Component
+  const CopyButton = ({ text, title }) => (
+    <Tooltip title={title}>
+      <IconButton size="small" onClick={() => handleCopy(text)} sx={{ p: 0.5 }}>
+        <ContentCopy sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  );
 
   return (
     <div>
-      <Typography variant="h5" sx={{ color: "#f44336", mb: 2, fontWeight: 600 }}>Orders</Typography>
+      <Typography variant="h5" sx={{ color: "#f44336", mb: 2, fontWeight: 600 }}>
+        Orders
+      </Typography>
 
+      {/* Date Range and Export Controls */}
       <Box sx={{ mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6} md={3}><TextField type="date" label="Start Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} /></Grid>
-          <Grid item xs={12} sm={6} md={3}><TextField type="date" label="End Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} /></Grid>
-          <Grid item xs={12} sm={6} md={3}><Button variant="contained" color="success" fullWidth onClick={handleFetchOrders} disabled={loading}>Fetch Orders</Button></Grid>
-          <Grid item xs={12} sm={6} md={3}><Button variant="outlined" fullWidth onClick={exportToExcel} disabled={loading || !filteredOrders.length}>Export Excel</Button></Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField type="date" label="Start Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField type="date" label="End Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Button variant="contained" color="success" fullWidth onClick={handleFetchOrders} disabled={loading}>Fetch Orders</Button>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Button variant="outlined" fullWidth onClick={exportToExcel} disabled={loading || !filteredOrders.length}>Export Excel</Button>
+          </Grid>
         </Grid>
       </Box>
 
+      {/* Search - Always interactive */}
       <TextField fullWidth variant="outlined" placeholder="Search by name, status, or order code" value={searchText} onChange={(e) => setSearchText(e.target.value)} sx={{ mb: 2 }} />
 
+      {/* Filters - Always interactive, even when loading */}
+      <Box sx={{ mb: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Source</Typography>
+            <Select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} fullWidth size="small">
+              <MenuItem value="all">All Orders</MenuItem>
+              <MenuItem value="website">Website Orders</MenuItem>
+              <MenuItem value="app">App Orders</MenuItem>
+            </Select>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Payment Mode</Typography>
+            <Select value={filterPaymentMode} onChange={(e) => setFilterPaymentMode(e.target.value)} fullWidth size="small">
+              <MenuItem value="all">All Payment Modes</MenuItem>
+              {uniquePaymentModes.map(mode => (<MenuItem key={mode} value={mode}>{mode}</MenuItem>))}
+            </Select>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Filter by Customer Type</Typography>
+            <Select value={filterAgentType} onChange={(e) => setFilterAgentType(e.target.value)} fullWidth size="small">
+              <MenuItem value="all">All Users</MenuItem>
+              <MenuItem value="agents">Agents Only</MenuItem>
+              <MenuItem value="non-agents">Non-Agents Only</MenuItem>
+            </Select>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Typography variant="subtitle1" sx={{ mt: 4 }}>
+              <strong>Total Orders:</strong> <span style={{ color: "#7cb342", fontWeight: 600 }}>{filteredOrders.length}</span>
+            </Typography>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Status Filter Chips */}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
         <Chip label={`All Status (${filteredOrders.length})`} color="info" variant={selectedStatus === null ? "filled" : "outlined"} onClick={() => handleStatusClick(null)} clickable sx={{ fontWeight: 600 }} />
         {Object.entries(statusCounts).map(([status, count]) => (
@@ -219,23 +280,30 @@ const Orders = () => {
         ))}
       </Box>
 
-      {/* Table Container with relative positioning for overlay */}
-      <TableContainer component={Paper} sx={{ minHeight: 400, position: 'relative' }}>
+      {/* Orders Table */}
+      <TableContainer component={Paper} sx={{ position: 'relative', minHeight: 400 }}>
         
-        {/* Loading Overlay: Only appears when loading is true */}
+        {/* Loading Overlay - Covers only the table, leaving filters interactive */}
         {loading && (
-          <Box sx={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 10
-          }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              zIndex: 2,
+            }}
+          >
             <CircularProgress />
           </Box>
         )}
 
-        <Table sx={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+        <Table>
           <TableHead>
             <TableRow>
               <TableCell><Checkbox checked={selectAll} onChange={handleSelectAll} disabled={loading} /></TableCell>
@@ -249,47 +317,85 @@ const Orders = () => {
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
-          <TableBody>
+          
+          {/* Fades out and disables clicks when loading */}
+          <TableBody sx={{ opacity: loading ? 0.3 : 1, transition: 'opacity 0.2s', pointerEvents: loading ? 'none' : 'auto' }}>
+            
             {paginatedOrders.length > 0 ? (
+              // 1. Show Data when loaded and has items
               paginatedOrders.map(order => (
                 <TableRow key={order.orderCode} hover>
                   <TableCell>
                     <Checkbox checked={selectedCheckboxes[order.orderCode] || false} onChange={() => handleCheckboxClick(order.orderCode)} />
                   </TableCell>
+                  
+                  {/* Order Code + Copy */}
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.orderCode}</Typography>
                       <CopyButton text={order.orderCode} title="Copy Order Code" />
                     </Stack>
                   </TableCell>
+
                   <TableCell>{new Date(order.orderDate).toLocaleString()}</TableCell>
+                  
+                  {/* Customer Name + Copy */}
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.fullName}</Typography>
                       <CopyButton text={order.fullName} title="Copy Name" />
                     </Stack>
                   </TableCell>
+                  
+                  {/* Contact Number + Copy */}
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.contactNumber}</Typography>
                       <CopyButton text={order.contactNumber} title="Copy Contact Number" />
                     </Stack>
                   </TableCell>
+
                   <TableCell>{order.paymentMode || "N/A"}</TableCell>
-                  <TableCell><Chip label={order.orderCycle} color={statusColors[order.orderCycle] || "default"} size="small" /></TableCell>
+                  
                   <TableCell>
-                    <Chip label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"} color={agentNames.includes(order.fullName) ? "primary" : "secondary"} size="small" variant="outlined" />
+                    <Chip label={order.orderCycle} color={statusColors[order.orderCycle] || "default"} size="small" />
                   </TableCell>
+                  
                   <TableCell>
-                    <Tooltip title="Update Cycle"><IconButton onClick={() => openCycleModal(order)} size="small" sx={{ color: "#8bc34a", mr: 1 }}><Edit /></IconButton></Tooltip>
-                    <Tooltip title="View Details"><IconButton onClick={() => openDetailModal(order)} size="small"><Visibility /></IconButton></Tooltip>
+                    <Chip 
+                      label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"} 
+                      color={agentNames.includes(order.fullName) ? "primary" : "secondary"} 
+                      size="small" 
+                      variant="outlined" 
+                    />
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Tooltip title="Update Cycle">
+                      <IconButton onClick={() => openCycleModal(order)} size="small" sx={{ color: "#8bc34a", mr: 1 }}>
+                        <Edit />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="View Details">
+                      <IconButton onClick={() => openDetailModal(order)} size="small">
+                        <Visibility />
+                      </IconButton>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))
+            ) : loading ? (
+              // 2. Show blank row when loading to maintain height, NEVER show "No orders found"
+              <TableRow>
+                <TableCell colSpan={9} sx={{ height: 350, border: 'none' }} />
+              </TableRow>
             ) : (
+              // 3. Show "No orders found" ONLY when not loading and array is empty
               <TableRow>
                 <TableCell colSpan={9} align="center">
-                  <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>No orders found</Typography>
+                  <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>
+                    No orders found
+                  </Typography>
                 </TableCell>
               </TableRow>
             )}
@@ -297,12 +403,19 @@ const Orders = () => {
         </Table>
       </TableContainer>
 
+      {/* Pagination - Interactive */}
       <Stack spacing={2} alignItems="center" sx={{ mt: 2 }}>
-        <Pagination count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)} page={page} onChange={handlePageChange} color="primary" disabled={loading} />
+        <Pagination count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)} page={page} onChange={handlePageChange} color="primary" />
       </Stack>
 
-      {isDetailModalOpen && (<OrderDetailsModal orderId={selectedOrderId} onClose={() => setIsDetailModalOpen(false)} />)}
-      {isCycleModalOpen && (<CycleUpdateModal open={isCycleModalOpen} onClose={closeCycleModal} orderId={selectedOrderId} currentCycle={selectedOrderCycle} onUpdated={handleCycleUpdated} />)}
+      {/* Modals */}
+      {isDetailModalOpen && (
+        <OrderDetailsModal orderId={selectedOrderId} onClose={() => setIsDetailModalOpen(false)} />
+      )}
+
+      {isCycleModalOpen && (
+        <CycleUpdateModal open={isCycleModalOpen} onClose={closeCycleModal} orderId={selectedOrderId} currentCycle={selectedOrderCycle} onUpdated={handleCycleUpdated} />
+      )}
     </div>
   );
 };

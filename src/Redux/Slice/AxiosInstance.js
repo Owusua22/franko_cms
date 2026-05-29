@@ -1,39 +1,22 @@
 // src/Redux/Slice/AxiosInstance.js
 import axios from "axios";
 
-/* ─────────────────────────────────────────────
-   ENV VARIABLES
-───────────────────────────────────────────── */
 const LAMBDA_BASE_URL = import.meta.env.VITE_LAMBDA_BASE_URL;
-const LAMBDA_HEADER_NAME =
-  import.meta.env.VITE_LAMBDA_HEADER_NAME || "Identifier";
-const LAMBDA_HEADER_VALUE =
-  import.meta.env.VITE_LAMBDA_HEADER_VALUE || "Franko";
+const LAMBDA_HEADER_NAME = import.meta.env.VITE_LAMBDA_HEADER_NAME || "Identifier";
+const LAMBDA_HEADER_VALUE = import.meta.env.VITE_LAMBDA_HEADER_VALUE || "Franko";
 
-/* ─────────────────────────────────────────────
-   VALIDATE ENV
-───────────────────────────────────────────── */
 if (!LAMBDA_BASE_URL) {
-  console.error(
-    "❌ VITE_LAMBDA_BASE_URL is not defined. Please set it in your .env file."
-  );
+  console.error("❌ VITE_LAMBDA_BASE_URL is not defined");
 }
 
-/* ─────────────────────────────────────────────
-   SAFE STORAGE GETTER
-───────────────────────────────────────────── */
 const safeGetFromStorage = (key) => {
   try {
     const value = localStorage.getItem(key);
     if (!value) return null;
-
-    if (typeof value === "object") return value;
-
     if (value === "[object Object]") {
       localStorage.removeItem(key);
       return null;
     }
-
     try {
       return JSON.parse(value);
     } catch {
@@ -44,26 +27,16 @@ const safeGetFromStorage = (key) => {
   }
 };
 
-/* ─────────────────────────────────────────────
-   GET CURRENT AUTH TOKEN
-───────────────────────────────────────────── */
 const getAuthToken = () => {
   try {
     const user = safeGetFromStorage("user");
-    const customer = safeGetFromStorage("customer");
-
     if (user?.accessToken) return user.accessToken;
-    if (customer?.accessToken) return customer.accessToken;
-
     return null;
   } catch {
     return null;
   }
 };
 
-/* ─────────────────────────────────────────────
-   JWT TOKEN EXPIRY CHECKER
-───────────────────────────────────────────── */
 export const isTokenExpired = (token) => {
   if (!token) return true;
   
@@ -71,25 +44,36 @@ export const isTokenExpired = (token) => {
     const parts = token.split('.');
     if (parts.length !== 3) return true;
     
-    // Decode JWT payload
     const payload = JSON.parse(atob(parts[1]));
     const exp = payload.exp;
     
-    if (!exp) return false; // No expiry set
+    if (!exp) return false;
     
     const now = Math.floor(Date.now() / 1000);
-    const bufferTime = 60; // 60 seconds buffer
+    const bufferTime = 60;
     
     return (exp - bufferTime) <= now;
-  } catch (error) {
-    console.warn('Error checking token expiry:', error);
+  } catch {
     return true;
   }
 };
 
-/* ─────────────────────────────────────────────
-   CREATE INSTANCE
-───────────────────────────────────────────── */
+const handleUnauthorized = () => {
+  console.warn("🔐 401 Unauthorized - Logging out user");
+  
+  localStorage.removeItem("user");
+  localStorage.removeItem("customer");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("loginTime");
+  localStorage.removeItem("lastActivity");
+  
+  // Prevent redirect loop - check if already on login page
+  if (!window.location.pathname.includes("/admin/login")) {
+    window.location.href = "/admin/login";
+  }
+};
+
 const axiosInstance = axios.create({
   baseURL: LAMBDA_BASE_URL,
   timeout: 30000,
@@ -99,9 +83,6 @@ const axiosInstance = axios.create({
   },
 });
 
-/* ─────────────────────────────────────────────
-   REQUEST INTERCEPTOR
-───────────────────────────────────────────── */
 axiosInstance.interceptors.request.use(
   (config) => {
     config.headers = config.headers || {};
@@ -129,10 +110,7 @@ axiosInstance.interceptors.request.use(
     };
 
     if (import.meta.env.DEV) {
-      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`, {
-        params: config.params,
-        headers: config.headers,
-      });
+      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
     }
 
     return config;
@@ -143,9 +121,6 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-/* ─────────────────────────────────────────────
-   RESPONSE INTERCEPTOR
-───────────────────────────────────────────── */
 axiosInstance.interceptors.response.use(
   (response) => {
     if (import.meta.env.DEV) {
@@ -155,19 +130,21 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     const status = error.response?.status;
-    const data = error.response?.data;
 
     if (import.meta.env.DEV) {
       console.error(`❌ ${error.config?.method?.toUpperCase()} ${error.config?.url} → ${status || "Network error"}`);
-      if (data) console.error("Response:", data);
+    }
+
+    // Handle 401 immediately
+    if (status === 401) {
+      handleUnauthorized();
+      return Promise.reject(error);
     }
 
     if (error.code === "ECONNABORTED") {
       console.error("⏱ Request timed out");
     } else if (error.message === "Network Error") {
       console.error("📡 Network unreachable");
-    } else if (status === 401) {
-      console.warn("🔐 Unauthorized — token may be expired");
     } else if (status === 403) {
       console.warn("🚫 Forbidden access");
     } else if (status === 429) {

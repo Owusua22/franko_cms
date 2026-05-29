@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
@@ -127,9 +128,11 @@ function App() {
     <>
       <ScrollToTop />
       <Routes>
+        {/* Public Routes - NO AuthGuard */}
         <Route path="/" element={<Navigate to="/admin/login" replace />} />
         <Route path="/admin/login" element={<UserLogin />} />
 
+        {/* Protected Routes - WITH AuthGuard */}
         {routes.map(({ path, layout: Layout, page: Page }) => (
           <Route
             key={path}
@@ -144,6 +147,7 @@ function App() {
           />
         ))}
 
+        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/admin/login" replace />} />
       </Routes>
     </>
