@@ -32,7 +32,7 @@ import ContentProduct from "./Pages/ContentManager/ContentManagerPage/ContentPro
 import ContentShowroom from "./Pages/ContentManager/ContentManagerPage/ContentShowroom";
 import Contentbrand from "./Pages/ContentManager/ContentManagerPage/Contentbrand";
 import ContentCategory from "./Pages/ContentManager/ContentManagerPage/ContentCategory";
-import ContentBranchProduct from "./Pages/ContentManager/ContentManagerPage/ContentBranchProduct";
+
 import ContentBanner from "./Pages/ContentManager/ContentManagerPage/ContentBanner";
 
 import DevPage from "./Pages/Developer/DevPage";
@@ -71,7 +71,7 @@ const routes = [
   { path: "/content/showroom", layout: ContentPage, page: ContentShowroom },
   { path: "/content/brands", layout: ContentPage, page: Contentbrand },
   { path: "/content/category", layout: ContentPage, page: ContentCategory },
-  { path: "/content/branch-products", layout: ContentPage, page: ContentBranchProduct },
+
   { path: "/content/ctp001-products", layout: ContentPage, page: CTP001ProductsPage },
 
   { path: "/dev/dashboard", layout: DevPage, page: DevDashboard },

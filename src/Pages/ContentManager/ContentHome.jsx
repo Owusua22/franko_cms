@@ -71,9 +71,9 @@ const ContentHome = ({ children }) => {
     { key: '/content/brands', icon: <AppstoreAddOutlined />, label: 'Brands', path: '/content/brands' },
     { key: '/content/category', icon: <ClusterOutlined />, label: 'Category', path: '/content/category' },
     { key: '/content/showroom', icon: <HomeOutlined />, label: 'Showroom', path: '/content/showroom' },
-    { key: '/content/branch-products', icon: <ClusterOutlined />, label: 'Branch Products', path: '/content/branch-products' },
+   
     { key: '/content/banner', icon: <FileImageOutlined />, label: 'Banners', path: '/content/banner' },
-    { key: '/content/ctp001-products', icon: <ClusterOutlined />, label: 'CTP001 Products', path: '/content/ctp001-products' },
+    { key: '/content/ctp001-products', icon: <ClusterOutlined />, label: 'Sales Mate Products', path: '/content/ctp001-products' },
   ];
 
   return (

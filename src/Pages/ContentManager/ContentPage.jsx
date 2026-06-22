@@ -9,7 +9,7 @@ import Contentbrand from './ContentManagerPage/Contentbrand';
 import ContentCategory from './ContentManagerPage/ContentCategory';
 import ContentBanner from './ContentManagerPage/ContentBanner';
 import ContentHome from './ContentHome';
-import ContentBranchProduct from './ContentManagerPage/ContentBranchProduct';
+
 import CTP001ProductsPage from './ContentManagerPage/CTP001ProductsPage';
 
 
@@ -30,8 +30,7 @@ const ContentPage = () => {
         return <Contentbrand />;
       case '/content/category':
         return <ContentCategory/>;
-      case '/content/branch-products':
-        return <ContentBranchProduct/>;
+     
         case "/content/banner":
         return <ContentBanner/>;
         case "/content/ctp001-products":
