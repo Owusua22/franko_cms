@@ -10,6 +10,7 @@ import ContentCategory from './ContentManagerPage/ContentCategory';
 import ContentBanner from './ContentManagerPage/ContentBanner';
 import ContentHome from './ContentHome';
 import ContentBranchProduct from './ContentManagerPage/ContentBranchProduct';
+import CTP001ProductsPage from './ContentManagerPage/CTP001ProductsPage';
 
 
 const ContentPage = () => {
@@ -33,6 +34,8 @@ const ContentPage = () => {
         return <ContentBranchProduct/>;
         case "/content/banner":
         return <ContentBanner/>;
+        case "/content/ctp001-products":
+        return <CTP001ProductsPage/>;
       case '/content':
         return <Navigate to="/content/dashboard" />;
       default:

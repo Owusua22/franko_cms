@@ -13,17 +13,28 @@ import { fetchOrdersByDate, fetchSalesOrderById } from "../../../Redux/Slice/ord
 import OrderDetailsModal from "./OrderDetailsModal";
 import CycleUpdateModal from "./CycleUpdateModal";
 
+// Extracted to a stable component so React doesn't remount it every render
+const CopyButton = ({ text, title }) => (
+  <Tooltip title={title || "Copy"}>
+    <IconButton
+      size="small"
+      onClick={() => text && navigator.clipboard.writeText(text)}
+      sx={{ p: 0.5 }}
+    >
+      <ContentCopy sx={{ fontSize: 16 }} />
+    </IconButton>
+  </Tooltip>
+);
+
 const Orders = () => {
   const dispatch = useDispatch();
   const { orders = [], loading } = useSelector((state) => state.orders);
 
-  // Agent names for filtering (Customer Type)
   const agentNames = [
-    "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah", "Hannah Jethro", 
+    "Peggy Andoh", "sarah koffie", "Florence Gbeve", "Regina Baah", "Hannah Jethro",
     "Sadam Ansamah", "Judith Tsegah", "Dorcas Kumaku", "Roseline Boateng"
   ];
 
-  // State management
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [searchText, setSearchText] = useState("");
   const [filterSource, setFilterSource] = useState("all");
@@ -38,6 +49,7 @@ const Orders = () => {
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
   const [cachedOrderDetails, setCachedOrderDetails] = useState({});
   const [page, setPage] = useState(1);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const ITEMS_PER_PAGE = 10;
 
@@ -52,7 +64,12 @@ const Orders = () => {
     fetchCurrentMonthOrders();
   }, [fetchCurrentMonthOrders]);
 
-  // Memoized grouped orders
+  useEffect(() => {
+    if (!loading && orders.length > 0) {
+      setInitialLoad(false);
+    }
+  }, [loading, orders]);
+
   const groupedOrders = useMemo(() => {
     return Object.values(orders.reduce((acc, order) => {
       if (!acc[order.orderCode]) {
@@ -64,7 +81,6 @@ const Orders = () => {
     }, {}));
   }, [orders]);
 
-  // Memoized unique payment modes
   const uniquePaymentModes = useMemo(() => {
     const modes = new Set();
     groupedOrders.forEach(order => {
@@ -73,10 +89,9 @@ const Orders = () => {
     return Array.from(modes).sort();
   }, [groupedOrders]);
 
-  // Optimized filtering
   const filteredOrders = useMemo(() => {
     return groupedOrders.filter(order => {
-      const matchesSearch = !searchText || 
+      const matchesSearch = !searchText ||
         order.fullName?.toLowerCase().includes(searchText.toLowerCase()) ||
         order.orderCycle?.toLowerCase().includes(searchText.toLowerCase()) ||
         order.orderCode?.toLowerCase().includes(searchText.toLowerCase());
@@ -85,7 +100,7 @@ const Orders = () => {
         (filterSource === "website" && order.orderCode.startsWith("ORD")) ||
         (filterSource === "app" && !order.orderCode.startsWith("ORD"));
 
-      const matchesPaymentMode = filterPaymentMode === "all" || 
+      const matchesPaymentMode = filterPaymentMode === "all" ||
         order.paymentMode === filterPaymentMode;
 
       const matchesAgentType = filterAgentType === "all" ||
@@ -98,7 +113,6 @@ const Orders = () => {
     }).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
   }, [groupedOrders, searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus, agentNames]);
 
-  // Memoized status counts
   const statusCounts = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
       const status = order.orderCycle || "Unknown";
@@ -107,7 +121,6 @@ const Orders = () => {
     }, {});
   }, [filteredOrders]);
 
-  // Memoized paginated orders
   const paginatedOrders = useMemo(() => {
     const startIndex = (page - 1) * ITEMS_PER_PAGE;
     return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -122,6 +135,7 @@ const Orders = () => {
 
   const handleFetchOrders = useCallback(() => {
     if (dateRange.start && dateRange.end) {
+      setInitialLoad(true);
       dispatch(fetchOrdersByDate({
         from: dayjs(dateRange.start).format("YYYY-MM-DD"),
         to: dayjs(dateRange.end).add(1, "day").format("YYYY-MM-DD"),
@@ -194,22 +208,7 @@ const Orders = () => {
     setPage(1);
   }, []);
 
-  // Copy to clipboard handler
-  const handleCopy = useCallback((text) => {
-    if (text) navigator.clipboard.writeText(text);
-  }, []);
-
-  // Reset page when filters change
   useEffect(() => { setPage(1); }, [searchText, filterSource, filterPaymentMode, filterAgentType, selectedStatus]);
-
-  // Reusable Copy Button Component
-  const CopyButton = ({ text, title }) => (
-    <Tooltip title={title}>
-      <IconButton size="small" onClick={() => handleCopy(text)} sx={{ p: 0.5 }}>
-        <ContentCopy sx={{ fontSize: 16 }} />
-      </IconButton>
-    </Tooltip>
-  );
 
   return (
     <div>
@@ -221,24 +220,49 @@ const Orders = () => {
       <Box sx={{ mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
-            <TextField type="date" label="Start Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} />
+            <TextField
+              type="date"
+              label="Start Date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+            />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <TextField type="date" label="End Date" fullWidth InputLabelProps={{ shrink: true }} value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} />
+            <TextField
+              type="date"
+              label="End Date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+            />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Button variant="contained" color="success" fullWidth onClick={handleFetchOrders} disabled={loading}>Fetch Orders</Button>
+            <Button variant="contained" color="success" fullWidth onClick={handleFetchOrders} disabled={loading}>
+              Fetch Orders
+            </Button>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
-            <Button variant="outlined" fullWidth onClick={exportToExcel} disabled={loading || !filteredOrders.length}>Export Excel</Button>
+            <Button variant="outlined" fullWidth onClick={exportToExcel} disabled={loading || !filteredOrders.length}>
+              Export Excel
+            </Button>
           </Grid>
         </Grid>
       </Box>
 
-      {/* Search - Always interactive */}
-      <TextField fullWidth variant="outlined" placeholder="Search by name, status, or order code" value={searchText} onChange={(e) => setSearchText(e.target.value)} sx={{ mb: 2 }} />
+      {/* Search */}
+      <TextField
+        fullWidth
+        variant="outlined"
+        placeholder="Search by name, status, or order code"
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+        sx={{ mb: 2 }}
+      />
 
-      {/* Filters - Always interactive, even when loading */}
+      {/* Filters */}
       <Box sx={{ mb: 2 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
@@ -274,17 +298,30 @@ const Orders = () => {
 
       {/* Status Filter Chips */}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
-        <Chip label={`All Status (${filteredOrders.length})`} color="info" variant={selectedStatus === null ? "filled" : "outlined"} onClick={() => handleStatusClick(null)} clickable sx={{ fontWeight: 600 }} />
+        <Chip
+          label={`All Status (${filteredOrders.length})`}
+          color="info"
+          variant={selectedStatus === null ? "filled" : "outlined"}
+          onClick={() => handleStatusClick(null)}
+          clickable
+          sx={{ fontWeight: 600 }}
+        />
         {Object.entries(statusCounts).map(([status, count]) => (
-          <Chip key={status} label={`${status} (${count})`} color={statusColors[status] || "default"} variant={status === selectedStatus ? "filled" : "outlined"} onClick={() => handleStatusClick(status)} clickable />
+          <Chip
+            key={status}
+            label={`${status} (${count})`}
+            color={statusColors[status] || "default"}
+            variant={status === selectedStatus ? "filled" : "outlined"}
+            onClick={() => handleStatusClick(status)}
+            clickable
+          />
         ))}
       </Box>
 
       {/* Orders Table */}
       <TableContainer component={Paper} sx={{ position: 'relative', minHeight: 400 }}>
-        
-        {/* Loading Overlay - Covers only the table, leaving filters interactive */}
-        {loading && (
+        {/* Loading Overlay */}
+        {loading && (initialLoad || orders.length === 0) && (
           <Box
             sx={{
               position: 'absolute',
@@ -295,7 +332,7 @@ const Orders = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
               zIndex: 2,
             }}
           >
@@ -306,7 +343,9 @@ const Orders = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell><Checkbox checked={selectAll} onChange={handleSelectAll} disabled={loading} /></TableCell>
+              <TableCell>
+                <Checkbox checked={selectAll} onChange={handleSelectAll} disabled={loading} />
+              </TableCell>
               <TableCell>Order Code</TableCell>
               <TableCell>Order Date</TableCell>
               <TableCell>Customer Name</TableCell>
@@ -317,19 +356,19 @@ const Orders = () => {
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
-          
-          {/* Fades out and disables clicks when loading */}
-          <TableBody sx={{ opacity: loading ? 0.3 : 1, transition: 'opacity 0.2s', pointerEvents: loading ? 'none' : 'auto' }}>
-            
+
+          <TableBody sx={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.3s' }}>
             {paginatedOrders.length > 0 ? (
-              // 1. Show Data when loaded and has items
               paginatedOrders.map(order => (
                 <TableRow key={order.orderCode} hover>
                   <TableCell>
-                    <Checkbox checked={selectedCheckboxes[order.orderCode] || false} onChange={() => handleCheckboxClick(order.orderCode)} />
+                    <Checkbox
+                      checked={selectedCheckboxes[order.orderCode] || false}
+                      onChange={() => handleCheckboxClick(order.orderCode)}
+                      disabled={loading}
+                    />
                   </TableCell>
-                  
-                  {/* Order Code + Copy */}
+
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.orderCode}</Typography>
@@ -338,16 +377,14 @@ const Orders = () => {
                   </TableCell>
 
                   <TableCell>{new Date(order.orderDate).toLocaleString()}</TableCell>
-                  
-                  {/* Customer Name + Copy */}
+
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.fullName}</Typography>
                       <CopyButton text={order.fullName} title="Copy Name" />
                     </Stack>
                   </TableCell>
-                  
-                  {/* Contact Number + Copy */}
+
                   <TableCell>
                     <Stack direction="row" alignItems="center" spacing={1}>
                       <Typography variant="body2">{order.contactNumber}</Typography>
@@ -356,57 +393,70 @@ const Orders = () => {
                   </TableCell>
 
                   <TableCell>{order.paymentMode || "N/A"}</TableCell>
-                  
+
                   <TableCell>
                     <Chip label={order.orderCycle} color={statusColors[order.orderCycle] || "default"} size="small" />
                   </TableCell>
-                  
+
                   <TableCell>
-                    <Chip 
-                      label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"} 
-                      color={agentNames.includes(order.fullName) ? "primary" : "secondary"} 
-                      size="small" 
-                      variant="outlined" 
+                    <Chip
+                      label={agentNames.includes(order.fullName) ? "Agent" : "Non-Agent"}
+                      color={agentNames.includes(order.fullName) ? "primary" : "secondary"}
+                      size="small"
+                      variant="outlined"
                     />
                   </TableCell>
-                  
+
                   <TableCell>
                     <Tooltip title="Update Cycle">
-                      <IconButton onClick={() => openCycleModal(order)} size="small" sx={{ color: "#8bc34a", mr: 1 }}>
+                      <IconButton
+                        onClick={() => openCycleModal(order)}
+                        size="small"
+                        sx={{ color: "#8bc34a", mr: 1 }}
+                        disabled={loading}
+                      >
                         <Edit />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="View Details">
-                      <IconButton onClick={() => openDetailModal(order)} size="small">
+                      <IconButton
+                        onClick={() => openDetailModal(order)}
+                        size="small"
+                        disabled={loading}
+                      >
                         <Visibility />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
                 </TableRow>
               ))
-            ) : loading ? (
-              // 2. Show blank row when loading to maintain height, NEVER show "No orders found"
-              <TableRow>
-                <TableCell colSpan={9} sx={{ height: 350, border: 'none' }} />
-              </TableRow>
             ) : (
-              // 3. Show "No orders found" ONLY when not loading and array is empty
-              <TableRow>
-                <TableCell colSpan={9} align="center">
-                  <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>
-                    No orders found
-                  </Typography>
-                </TableCell>
-              </TableRow>
+              !loading && (
+                <TableRow>
+                  <TableCell colSpan={9} align="center">
+                    <Typography variant="h6" sx={{ py: 4, color: 'text.secondary' }}>
+                      No orders found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )
             )}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Pagination - Interactive */}
-      <Stack spacing={2} alignItems="center" sx={{ mt: 2 }}>
-        <Pagination count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)} page={page} onChange={handlePageChange} color="primary" />
-      </Stack>
+      {/* Pagination */}
+      {filteredOrders.length > 0 && (
+        <Stack spacing={2} alignItems="center" sx={{ mt: 2 }}>
+          <Pagination
+            count={Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+            disabled={loading}
+          />
+        </Stack>
+      )}
 
       {/* Modals */}
       {isDetailModalOpen && (
@@ -414,7 +464,13 @@ const Orders = () => {
       )}
 
       {isCycleModalOpen && (
-        <CycleUpdateModal open={isCycleModalOpen} onClose={closeCycleModal} orderId={selectedOrderId} currentCycle={selectedOrderCycle} onUpdated={handleCycleUpdated} />
+        <CycleUpdateModal
+          open={isCycleModalOpen}
+          onClose={closeCycleModal}
+          orderId={selectedOrderId}
+          currentCycle={selectedOrderCycle}
+          onUpdated={handleCycleUpdated}
+        />
       )}
     </div>
   );

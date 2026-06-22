@@ -13,6 +13,8 @@ import cartReducer from "./Slice/cartSlice";
 import advertismentReducer from "./Slice/advertismentSlice";
 import branchProductReducer from "./Slice/branchProductSlice";
 import branchOrderReducer from "./Slice/branchOrderSlice";
+import ctp001Reducer from "./Slice/ctp001Slice";
+
 
 // ==================== COMBINE ALL REDUCERS ====================
 const rootReducer = combineReducers({
@@ -27,6 +29,9 @@ const rootReducer = combineReducers({
   advertisment: advertismentReducer,
   branchProducts: branchProductReducer,
   branchOrders: branchOrderReducer,
+   ctp001: ctp001Reducer,
+
+  
 });
 
 // ==================== CONFIGURE STORE ====================

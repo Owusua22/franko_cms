@@ -15,6 +15,7 @@ import DevShowroom from './Dev/DevShowroom';
 import DevLayout from './DevLayout';
 
 import DevBranchProducts from './Dev/DevBranchProducts';
+import DevCtp001Products from './Dev/DevCtp001Products';
 
 const DevPage = () => {
   const location = useLocation();
@@ -41,9 +42,9 @@ const DevPage = () => {
         return <DevBranchProducts/>;
       case '/dev/users':
         return <DevUsers />;
-    
-       
-      case '/dev':
+        case "/dev/ctp001-products":
+        return <DevCtp001Products/>;
+        case '/dev':
         return <Navigate to="/dev/dashboard" />;
       default:
         return <Navigate to="/dev/dashboard" />;

@@ -66,6 +66,7 @@ const DevLayout = ({ children }) => {
     { key: '/dev/banner', icon: Image, label: 'Banner', link: '/dev/banner' },
     { key: '/dev/branch-products', icon: Users, label: 'Branch Products', link: '/dev/branch-products' },
     { key: '/dev/users', icon: User, label: 'Users', link: '/dev/users' },
+    { key: '/dev/ctp001-products', icon: Users, label: 'CTP001 Products', link: '/dev/ctp001-products' },
   
 
     { key: 'logout', icon: LogOut, label: 'Logout', action: showLogoutModal },

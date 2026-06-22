@@ -48,6 +48,8 @@ import DevUsers from "./Pages/Developer/Dev/DevUsers";
 import DigiPage from "./Pages/DigitalMarketer/DigiPage";
 import DigiOrders from "./Pages/DigitalMarketer/Digi/DigiOrders";
 import DigiProducts from "./Pages/DigitalMarketer/Digi/DigiProducts";
+import CTP001ProductsPage from "./Pages/ContentManager/ContentManagerPage/CTP001ProductsPage";
+import DevCtp001Products from "./Pages/Developer/Dev/DevCtp001Products";
 
 /* ==================== ROUTE CONFIG ==================== */
 const routes = [
@@ -70,6 +72,7 @@ const routes = [
   { path: "/content/brands", layout: ContentPage, page: Contentbrand },
   { path: "/content/category", layout: ContentPage, page: ContentCategory },
   { path: "/content/branch-products", layout: ContentPage, page: ContentBranchProduct },
+  { path: "/content/ctp001-products", layout: ContentPage, page: CTP001ProductsPage },
 
   { path: "/dev/dashboard", layout: DevPage, page: DevDashboard },
   { path: "/dev/brands", layout: DevPage, page: DevBrands },
@@ -79,7 +82,7 @@ const routes = [
   { path: "/dev/showroom", layout: DevPage, page: DevShowroom },
   { path: "/dev/banner", layout: DevPage, page: DevBanners },
   { path: "/dev/users", layout: DevPage, page: DevUsers },
-
+  { path: "/dev/ctp001-products", layout: DevPage, page: DevCtp001Products },
   { path: "/digi/orders", layout: DigiPage, page: DigiOrders },
   { path: "/digi/products", layout: DigiPage, page: DigiProducts },
 ];
