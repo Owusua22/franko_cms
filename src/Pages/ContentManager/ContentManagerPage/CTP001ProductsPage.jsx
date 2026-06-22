@@ -20,8 +20,6 @@ import {
   Typography,
   List,
   Spin,
-  Popconfirm,
-  Badge,
 } from "antd";
 import {
   SearchOutlined,
@@ -31,34 +29,25 @@ import {
   SwapOutlined,
   LinkOutlined,
   CheckCircleTwoTone,
-  DisconnectOutlined,
-  EditOutlined,
 } from "@ant-design/icons";
 import {
   getCTP001Products,
   mergeSingleCTP001WithCTP002,
-  updateMergedProduct,
-  unmergeCTP001Product,
   clearSimilarCandidates,
   removeManualMerge,
   selectCTP001Products,
   selectCTP001Pagination,
   selectCTP001ProductsLoading,
   selectSingleMergeLoading,
-  selectUpdateMergeLoading,
-  selectUnmergeLoading,
   selectMergedProductMap,
-  selectMergedProducts,
   selectCTP001ProductsError,
   selectMergeActionError,
   selectSingleMergeError,
-  selectUpdateMergeError,
-  selectUnmergeError,
   clearSpecificError,
   getSimilarity,
   getMergedProducts,
+  selectMergedProducts,
   selectMergedProductsLoading,
-  MERGE_OPERATION,
 } from "../../../Redux/Slice/ctp001Slice";
 import { fetchAllProducts } from "../../../Redux/Slice/productSlice";
 
@@ -66,17 +55,26 @@ const { Text, Title } = Typography;
 
 const BACKEND_BASE_URL = "https://cms.frankotrading.com";
 
-const wrapStyle = { wordBreak: "break-word", whiteSpace: "normal" };
+const wrapStyle = {
+  wordBreak: "break-word",
+  whiteSpace: "normal",
+};
 
 const getImageUrl = (imagePath) => {
   if (!imagePath) return null;
+
   const fileName = String(imagePath).split("\\").pop().split("/").pop();
+
   if (!fileName) return null;
+
   return `${BACKEND_BASE_URL}/Media/Products_Images/${fileName}`;
 };
 
 const getRowKey = (record, index) =>
-  record?.productID || record?.Productid || record?.productId || `row-${index}`;
+  record?.productID ||
+  record?.Productid ||
+  record?.productId ||
+  `row-${index}`;
 
 const formatPrice = (price) =>
   parseFloat(price || 0).toLocaleString("en-US", {
@@ -92,21 +90,15 @@ const getProductId = (product) =>
   product?.id ||
   "";
 
-const getProductName = (product) => product?.productName || product?.ProductName || "";
-const getProductPrice = (product) => Number(product?.sellingPrice1 || product?.price || 0);
+const getProductName = (product) =>
+  product?.productName || product?.ProductName || "";
 
-/* ══════════════════════════════════════════
-   MODE: which operation the merge modal is doing
-══════════════════════════════════════════ */
-const MODAL_MODE = {
-  MERGE: "merge",   // brand new link
-  UPDATE: "update", // change existing link
-};
+const getProductPrice = (product) =>
+  Number(product?.sellingPrice1 || product?.price || 0);
 
 const CTP001ProductsPage = () => {
   const dispatch = useDispatch();
 
-  /* ── Selectors ── */
   const products = useSelector(selectCTP001Products);
   const pagination = useSelector(selectCTP001Pagination);
   const mergedProductMap = useSelector(selectMergedProductMap);
@@ -115,34 +107,29 @@ const CTP001ProductsPage = () => {
 
   const isFetching = useSelector(selectCTP001ProductsLoading);
   const isSingleMerging = useSelector(selectSingleMergeLoading);
-  const isUpdating = useSelector(selectUpdateMergeLoading);
-  const isUnmerging = useSelector(selectUnmergeLoading);
 
   const fetchError = useSelector(selectCTP001ProductsError);
   const mergeError = useSelector(selectMergeActionError);
   const singleMergeError = useSelector(selectSingleMergeError);
-  const updateMergeError = useSelector(selectUpdateMergeError);
-  const unmergeError = useSelector(selectUnmergeError);
 
   const websiteProducts = useSelector((state) => state.products?.products || []);
   const websiteLoading = useSelector((state) => state.products?.loading);
 
-  /* ── Local state ── */
   const [searchText, setSearchText] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
+
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [mergeModalVisible, setMergeModalVisible] = useState(false);
   const [mergedModalVisible, setMergedModalVisible] = useState(false);
 
-  // Modal mode: "merge" or "update"
-  const [modalMode, setModalMode] = useState(MODAL_MODE.MERGE);
   const [mergeTargetProduct, setMergeTargetProduct] = useState(null);
-  const [selectedWebsiteCandidate, setSelectedWebsiteCandidate] = useState(null);
+  const [selectedWebsiteCandidate, setSelectedWebsiteCandidate] =
+    useState(null);
   const [websiteSearchText, setWebsiteSearchText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [websiteProductsRequested, setWebsiteProductsRequested] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [websiteProductsRequested, setWebsiteProductsRequested] =
+    useState(false);
 
-  /* ── Bootstrap ── */
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -153,13 +140,21 @@ const CTP001ProductsPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!websiteProductsRequested && !websiteProducts.length && !websiteLoading) {
+    if (
+      !websiteProductsRequested &&
+      !websiteProducts.length &&
+      !websiteLoading
+    ) {
       setWebsiteProductsRequested(true);
       dispatch(fetchAllProducts());
     }
-  }, [dispatch, websiteProductsRequested, websiteProducts.length, websiteLoading]);
+  }, [
+    dispatch,
+    websiteProductsRequested,
+    websiteProducts.length,
+    websiteLoading,
+  ]);
 
-  /* ── Handlers ── */
   const handleRefresh = useCallback(() => {
     dispatch(
       getCTP001Products({
@@ -169,7 +164,9 @@ const CTP001ProductsPage = () => {
     )
       .unwrap()
       .then(() => message.success("Refreshed!"))
-      .catch((err) => message.error(typeof err === "string" ? err : "Failed to refresh"));
+      .catch((err) =>
+        message.error(typeof err === "string" ? err : "Failed to refresh")
+      );
 
     dispatch(getMergedProducts());
   }, [dispatch, pagination.pageNumber, pagination.recordPerPage]);
@@ -184,12 +181,10 @@ const CTP001ProductsPage = () => {
     setDetailModalVisible(true);
   }, []);
 
-  // Opens the merge modal. mode = MODAL_MODE.MERGE | MODAL_MODE.UPDATE
-  const openMergeModal = useCallback(
-    (product, mode = MODAL_MODE.MERGE) => {
+  const handleOpenMergeModal = useCallback(
+    (product) => {
       const openModal = () => {
         setMergeTargetProduct(product);
-        setModalMode(mode);
         setSelectedWebsiteCandidate(null);
         setWebsiteSearchText("");
         setMergeModalVisible(true);
@@ -210,119 +205,75 @@ const CTP001ProductsPage = () => {
     [dispatch, websiteProducts.length, websiteLoading]
   );
 
-  const handleOpenMergeModal = useCallback(
-    (product) => openMergeModal(product, MODAL_MODE.MERGE),
-    [openMergeModal]
-  );
-
-  const handleOpenUpdateModal = useCallback(
-    (product) => openMergeModal(product, MODAL_MODE.UPDATE),
-    [openMergeModal]
-  );
-
-  /* ── Confirm link / update ── */
   const handleConfirmMerge = async () => {
     if (!mergeTargetProduct || !selectedWebsiteCandidate) {
       message.warning("Please select a Website Product to link with.");
       return;
     }
 
-    if (isSubmitting || isSingleMerging || isUpdating) return;
+    if (isMerging || isSingleMerging) return;
 
     const targetName = getProductName(mergeTargetProduct);
     const candidateName = getProductName(selectedWebsiteCandidate);
     const sim = getSimilarity(targetName, candidateName);
 
-    setIsSubmitting(true);
-    const isUpdate = modalMode === MODAL_MODE.UPDATE;
-    const hideLoading = message.loading(
-      isUpdate ? "Updating link..." : "Linking products...",
-      0
-    );
+    setIsMerging(true);
+    const hideLoading = message.loading("Linking products...", 0);
 
     try {
-      const thunk = isUpdate
-        ? updateMergedProduct({
-            ctp001Product: mergeTargetProduct,
-            newCtp002Product: selectedWebsiteCandidate,
-          })
-        : mergeSingleCTP001WithCTP002({
-            ctp001Product: mergeTargetProduct,
-            ctp002Product: selectedWebsiteCandidate,
-          });
+      const resultAction = await dispatch(
+        mergeSingleCTP001WithCTP002({
+          ctp001Product: mergeTargetProduct,
+          ctp002Product: selectedWebsiteCandidate,
+        })
+      );
 
-      const resultAction = await dispatch(thunk);
       hideLoading();
 
-      const succeeded = isUpdate
-        ? updateMergedProduct.fulfilled.match(resultAction)
-        : mergeSingleCTP001WithCTP002.fulfilled.match(resultAction);
-
-      if (succeeded) {
+      if (mergeSingleCTP001WithCTP002.fulfilled.match(resultAction)) {
         const similarityNote =
           sim < 0.5 ? ` (Similarity: ${Math.round(sim * 100)}%)` : "";
+
         message.success(
-          (resultAction.payload?.message ||
-            (isUpdate ? "Link updated!" : "Products linked successfully!")) +
+          (resultAction.payload?.message || "Products linked successfully!") +
             similarityNote
         );
 
         dispatch(getMergedProducts());
-        closeMergeModal();
-      } else {
+        setMergeModalVisible(false);
+        setMergeTargetProduct(null);
+        setSelectedWebsiteCandidate(null);
+        dispatch(clearSimilarCandidates());
+      } else if (mergeSingleCTP001WithCTP002.rejected.match(resultAction)) {
         const errorMsg =
           resultAction.payload ||
           resultAction.error?.message ||
-          (isUpdate ? "Failed to update link" : "Failed to link products");
-        message.error(typeof errorMsg === "string" ? errorMsg : "Operation failed");
+          "Failed to link products";
+
+        message.error(
+          typeof errorMsg === "string" ? errorMsg : "Failed to link products"
+        );
       }
     } catch (err) {
       hideLoading();
-      message.error(typeof err === "string" ? err : err?.message || "Operation failed");
+
+      message.error(
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to link products"
+      );
     } finally {
-      setIsSubmitting(false);
+      setIsMerging(false);
     }
   };
 
-  /* ── Unmerge ── */
   const handleUnmerge = useCallback(
-    async (record) => {
-      // Find the linked ctp002 product from the map / mergedProducts list
-      const ctp1Id = getProductId(record);
-      const ctp2Id = mergedProductMap[ctp1Id] || "";
-
-      // Build minimal product objects for the thunk
-      const ctp001Obj = { ...record };
-      const ctp002Obj = { productID: ctp2Id };
-
-      const hideLoading = message.loading("Removing link...", 0);
-      try {
-        const resultAction = await dispatch(
-          unmergeCTP001Product({
-            ctp001Product: ctp001Obj,
-            ctp002Product: ctp002Obj,
-          })
-        );
-        hideLoading();
-
-        if (unmergeCTP001Product.fulfilled.match(resultAction)) {
-          message.success(resultAction.payload?.message || "Link removed.");
-          dispatch(getMergedProducts());
-        } else {
-          // Optimistic fallback: remove from local state
-          dispatch(removeManualMerge(ctp1Id));
-          message.warning(
-            resultAction.payload || "Link removed locally (server may have failed)."
-          );
-        }
-      } catch (err) {
-        hideLoading();
-        // Fallback to local remove
-        dispatch(removeManualMerge(ctp1Id));
-        message.warning("Link removed locally.");
-      }
+    (salesMateId) => {
+      dispatch(removeManualMerge(salesMateId));
+      message.success("Link removed.");
+      dispatch(getMergedProducts());
     },
-    [dispatch, mergedProductMap]
+    [dispatch]
   );
 
   const handleTableChange = useCallback(
@@ -333,6 +284,7 @@ const CTP001ProductsPage = () => {
           recordPerPage: pag.pageSize,
         })
       );
+
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [dispatch]
@@ -343,7 +295,6 @@ const CTP001ProductsPage = () => {
     setMergeTargetProduct(null);
     setSelectedWebsiteCandidate(null);
     setWebsiteSearchText("");
-    setModalMode(MODAL_MODE.MERGE);
     dispatch(clearSimilarCandidates());
   }, [dispatch]);
 
@@ -352,10 +303,11 @@ const CTP001ProductsPage = () => {
     setSelectedProduct(null);
   }, []);
 
-  /* ── Derived data ── */
   const filteredProducts = useMemo(() => {
     const q = searchText.trim().toLowerCase();
+
     if (!q) return products || [];
+
     return (products || []).filter((product) =>
       [
         product?.productName,
@@ -374,7 +326,9 @@ const CTP001ProductsPage = () => {
 
   const displayedCandidates = useMemo(() => {
     if (!websiteProducts.length || !mergeTargetProduct) return [];
+
     const targetName = getProductName(mergeTargetProduct);
+
     const mapped = websiteProducts.map((product) => ({
       product,
       productId: getProductId(product),
@@ -384,6 +338,7 @@ const CTP001ProductsPage = () => {
 
     if (websiteSearchText) {
       const q = websiteSearchText.toLowerCase();
+
       return mapped
         .filter(
           (item) =>
@@ -393,6 +348,7 @@ const CTP001ProductsPage = () => {
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, 200);
     }
+
     return mapped.sort((a, b) => b.similarity - a.similarity).slice(0, 200);
   }, [websiteProducts, websiteSearchText, mergeTargetProduct]);
 
@@ -400,15 +356,12 @@ const CTP001ProductsPage = () => {
     () => ({
       total: pagination.total || (products || []).length,
       displayed: filteredProducts.length,
-      mergedCount: mergedProducts?.length || Object.keys(mergedProductMap || {}).length,
+      mergedCount:
+        mergedProducts?.length || Object.keys(mergedProductMap || {}).length,
     }),
     [products, filteredProducts, pagination, mergedProducts, mergedProductMap]
   );
 
-  /* ── Loading flag for the link/update button ── */
-  const isBusy = isSubmitting || isSingleMerging || isUpdating;
-
-  /* ── Table columns ── */
   const columns = useMemo(
     () => [
       {
@@ -417,10 +370,12 @@ const CTP001ProductsPage = () => {
         render: (_, record) => {
           const id = getProductId(record);
           const isMerged = Boolean(mergedProductMap[id]);
+
           return (
             <div style={wrapStyle}>
               <div style={{ fontWeight: 600, marginBottom: 2 }}>
                 {getProductName(record) || "-"}
+
                 {isMerged && (
                   <CheckCircleTwoTone
                     twoToneColor="#52c41a"
@@ -428,19 +383,23 @@ const CTP001ProductsPage = () => {
                   />
                 )}
               </div>
+
               <div style={{ fontSize: 12, color: "#888", marginBottom: 4 }}>
                 ID: {id || "-"}
+
                 {isMerged && (
                   <Tag color="success" style={{ marginLeft: 6, fontSize: 10 }}>
                     Linked → {mergedProductMap[id]}
                   </Tag>
                 )}
               </div>
+
               {record?.brandName && (
                 <Tag color="blue" style={{ fontSize: 11, marginRight: 4 }}>
                   {record.brandName}
                 </Tag>
               )}
+
               {record?.categoryName && (
                 <Tag color="orange" style={{ fontSize: 11 }}>
                   {record.categoryName}
@@ -458,11 +417,13 @@ const CTP001ProductsPage = () => {
         render: (_, record) => {
           const price = record?.sellingPrice1 || record?.price || 0;
           const oldPrice = record?.oldPrice;
+
           return (
             <div>
               <div style={{ fontWeight: 600, color: "#ff4d4f", fontSize: 15 }}>
                 ₵{formatPrice(price)}
               </div>
+
               {oldPrice > 0 && (
                 <div
                   style={{
@@ -486,8 +447,17 @@ const CTP001ProductsPage = () => {
         render: (_, record) => {
           const id = getProductId(record);
           const websiteId = mergedProductMap[id];
+
           return websiteId ? (
-            <Tag color="success" icon={<LinkOutlined />}>
+            <Tag
+              color="success"
+              icon={<LinkOutlined />}
+              style={{ cursor: "pointer" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUnmerge(id);
+              }}
+            >
               Linked
             </Tag>
           ) : (
@@ -498,7 +468,7 @@ const CTP001ProductsPage = () => {
       {
         title: "Actions",
         key: "actions",
-        width: 150,
+        width: 110,
         align: "center",
         render: (_, record) => {
           const id = getProductId(record);
@@ -506,7 +476,6 @@ const CTP001ProductsPage = () => {
 
           return (
             <Space size="small" wrap>
-              {/* View Details */}
               <Tooltip title="View Details">
                 <Button
                   type="text"
@@ -518,61 +487,17 @@ const CTP001ProductsPage = () => {
                 />
               </Tooltip>
 
-              {/* Link (only shown when not merged) */}
-              {!isMerged && (
-                <Tooltip title="Link to Website Product">
-                  <Button
-                    type="text"
-                    icon={<LinkOutlined />}
-                    style={{ color: "#52c41a" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenMergeModal(record);
-                    }}
-                  />
-                </Tooltip>
-              )}
-
-              {/* Update link (only shown when merged) */}
-              {isMerged && (
-                <Tooltip title="Change linked product">
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    style={{ color: "#722ed1" }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenUpdateModal(record);
-                    }}
-                  />
-                </Tooltip>
-              )}
-
-              {/* Unmerge (only shown when merged) */}
-              {isMerged && (
-                <Tooltip title="Remove link">
-                  <Popconfirm
-                    title="Remove link?"
-                    description="This will unlink the Sales Mate product from the Website product."
-                    onConfirm={(e) => {
-                      e?.stopPropagation?.();
-                      handleUnmerge(record);
-                    }}
-                    onCancel={(e) => e?.stopPropagation?.()}
-                    okText="Remove"
-                    okButtonProps={{ danger: true }}
-                    cancelText="Cancel"
-                  >
-                    <Button
-                      type="text"
-                      icon={<DisconnectOutlined />}
-                      danger
-                      loading={isUnmerging}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </Popconfirm>
-                </Tooltip>
-              )}
+              <Tooltip title={isMerged ? "Re-link" : "Link to Website Product"}>
+                <Button
+                  type="text"
+                  icon={<SwapOutlined />}
+                  style={{ color: "#722ed1" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenMergeModal(record);
+                  }}
+                />
+              </Tooltip>
             </Space>
           );
         },
@@ -582,16 +507,17 @@ const CTP001ProductsPage = () => {
       mergedProductMap,
       handleViewDetails,
       handleOpenMergeModal,
-      handleOpenUpdateModal,
       handleUnmerge,
-      isUnmerging,
     ]
   );
 
-  /* ── Detail modal content ── */
   const detailContent = useMemo(() => {
     if (!selectedProduct) return null;
-    const imageUrl = getImageUrl(selectedProduct?.productImage || selectedProduct?.image);
+
+    const imageUrl = getImageUrl(
+      selectedProduct?.productImage || selectedProduct?.image
+    );
+
     const price = selectedProduct?.sellingPrice1 || selectedProduct?.price || 0;
     const id = getProductId(selectedProduct);
     const websiteId = mergedProductMap[id];
@@ -603,22 +529,31 @@ const CTP001ProductsPage = () => {
             <img
               src={imageUrl}
               alt={getProductName(selectedProduct)}
-              style={{ width: "100%", maxHeight: 250, objectFit: "cover", borderRadius: 8 }}
+              style={{
+                width: "100%",
+                maxHeight: 250,
+                objectFit: "cover",
+                borderRadius: 8,
+              }}
             />
           </div>
         )}
+
         <h2 style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>
           {getProductName(selectedProduct) || "Product"}
         </h2>
+
         <Row gutter={[16, 12]}>
           <Col xs={24} sm={12}>
             <strong>Sales Mate ID:</strong>{" "}
             <span style={{ fontFamily: "monospace" }}>{id || "-"}</span>
           </Col>
+
           <Col xs={24} sm={12}>
             <strong>B-Code:</strong>{" "}
             <Tag color="purple">{selectedProduct?.bCode || "Not Set"}</Tag>
           </Col>
+
           {websiteId && (
             <Col span={24}>
               <Alert
@@ -630,11 +565,13 @@ const CTP001ProductsPage = () => {
             </Col>
           )}
         </Row>
+
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: "#ff4d4f" }}>
             ₵{formatPrice(price)}
           </div>
         </div>
+
         {selectedProduct?.description && (
           <div style={{ marginTop: 16 }}>
             <strong>Description:</strong>
@@ -647,7 +584,6 @@ const CTP001ProductsPage = () => {
     );
   }, [selectedProduct, mergedProductMap]);
 
-  /* ── Render ── */
   return (
     <div
       style={{
@@ -657,17 +593,23 @@ const CTP001ProductsPage = () => {
         boxSizing: "border-box",
       }}
     >
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 4 }}>
+        <h1
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: 0,
+            marginBottom: 4,
+          }}
+        >
           Sales Mate Products
         </h1>
+
         <p style={{ color: "#8c8c8c", margin: 0 }}>
-          Manage inventory and link, update, or unlink Website Products.
+          Manage inventory and link to Website Products.
         </p>
       </div>
 
-      {/* Error banners */}
       {fetchError && (
         <Alert
           message={fetchError}
@@ -678,6 +620,7 @@ const CTP001ProductsPage = () => {
           onClose={() => dispatch(clearSpecificError("ctp001Products"))}
         />
       )}
+
       {mergeError && (
         <Alert
           message={mergeError}
@@ -688,18 +631,7 @@ const CTP001ProductsPage = () => {
           onClose={() => dispatch(clearSpecificError("mergeAction"))}
         />
       )}
-      {unmergeError && (
-        <Alert
-          message={unmergeError}
-          type="error"
-          showIcon
-          closable
-          style={{ marginBottom: 16 }}
-          onClose={() => dispatch(clearSpecificError("unmergeMerge"))}
-        />
-      )}
 
-      {/* Stats */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         <Col xs={24} sm={8}>
           <Card size="small" hoverable>
@@ -710,6 +642,7 @@ const CTP001ProductsPage = () => {
             />
           </Card>
         </Col>
+
         <Col xs={24} sm={8}>
           <Card size="small" hoverable>
             <Statistic
@@ -719,6 +652,7 @@ const CTP001ProductsPage = () => {
             />
           </Card>
         </Col>
+
         <Col xs={24} sm={8}>
           <Card size="small" hoverable>
             <Statistic
@@ -731,7 +665,6 @@ const CTP001ProductsPage = () => {
         </Col>
       </Row>
 
-      {/* Search + Actions bar */}
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={[16, 12]} align="middle" justify="space-between">
           <Col xs={24} md={10}>
@@ -743,8 +676,15 @@ const CTP001ProductsPage = () => {
               allowClear
             />
           </Col>
+
           <Col xs={24} md={14}>
-            <Space wrap style={{ width: "100%", justifyContent: "flex-end" }}>
+            <Space
+              wrap
+              style={{
+                width: "100%",
+                justifyContent: "flex-end",
+              }}
+            >
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleRefresh}
@@ -752,21 +692,19 @@ const CTP001ProductsPage = () => {
               >
                 Refresh
               </Button>
-              <Badge count={stats.mergedCount} size="small" offset={[-4, 0]}>
-                <Button
-                  icon={<LinkOutlined />}
-                  onClick={handleViewMergedProducts}
-                  loading={mergedLoading}
-                >
-                  View Linked
-                </Button>
-              </Badge>
+
+              <Button
+                icon={<LinkOutlined />}
+                onClick={handleViewMergedProducts}
+                loading={mergedLoading}
+              >
+                View Linked
+              </Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
-      {/* Main table */}
       <Card>
         <Table
           dataSource={filteredProducts}
@@ -796,11 +734,14 @@ const CTP001ProductsPage = () => {
         />
       </Card>
 
-      {/* ─── Detail Modal ─── */}
       <Modal
         open={detailModalVisible}
         onCancel={closeDetailModal}
-        footer={<Button onClick={closeDetailModal}>Close</Button>}
+        footer={
+          <Space>
+            <Button onClick={closeDetailModal}>Close</Button>
+          </Space>
+        }
         width={700}
         centered
         title="Product Details"
@@ -809,18 +750,17 @@ const CTP001ProductsPage = () => {
         {detailContent}
       </Modal>
 
-      {/* ─── Linked Products Modal ─── */}
       <Modal
         open={mergedModalVisible}
         onCancel={() => setMergedModalVisible(false)}
         footer={null}
-        width={960}
+        width={900}
         centered
         destroyOnClose
         title={
           <Space>
             <LinkOutlined style={{ color: "#52c41a" }} />
-            <span>Linked Products ({mergedProducts?.length || 0})</span>
+            <span>Linked Products</span>
           </Space>
         }
       >
@@ -832,7 +772,11 @@ const CTP001ProductsPage = () => {
           }
           tableLayout="fixed"
           locale={{
-            emptyText: mergedLoading ? <Spin /> : <Empty description="No linked products" />,
+            emptyText: mergedLoading ? (
+              <Spin />
+            ) : (
+              <Empty description="No linked products" />
+            ),
           }}
           columns={[
             {
@@ -847,7 +791,6 @@ const CTP001ProductsPage = () => {
             {
               title: "Sales Mate ID",
               dataIndex: "ctP001ProductId",
-              width: 140,
               render: (text) => <Tag color="blue">{text}</Tag>,
             },
             {
@@ -862,7 +805,6 @@ const CTP001ProductsPage = () => {
             {
               title: "Website ID",
               dataIndex: "ctP002ProductId",
-              width: 140,
               render: (text) => <Tag color="purple">{text}</Tag>,
             },
           ]}
@@ -871,45 +813,44 @@ const CTP001ProductsPage = () => {
         />
       </Modal>
 
-      {/* ─── Merge / Update Modal ─── */}
       <Modal
         open={mergeModalVisible}
         onCancel={closeMergeModal}
         title={
           <Space>
-            {modalMode === MODAL_MODE.UPDATE ? (
-              <EditOutlined style={{ color: "#722ed1" }} />
-            ) : (
-              <SwapOutlined style={{ color: "#722ed1" }} />
-            )}
-            <span>
-              {modalMode === MODAL_MODE.UPDATE
-                ? "Update Link — Sales Mate → Website Product"
-                : "Link Sales Mate to Website Product"}
-            </span>
+            <SwapOutlined style={{ color: "#722ed1" }} />
+            <span>Link Sales Mate to Website Product</span>
           </Space>
         }
-        width={820}
+        width={800}
         centered
         destroyOnClose={false}
         maskClosable={false}
         footer={null}
       >
-        {/* Error inside modal */}
-        {(singleMergeError || updateMergeError) && (
+        {singleMergeError && (
           <Alert
-            message={modalMode === MODAL_MODE.UPDATE ? "Update Error" : "Link Error"}
-            description={singleMergeError || updateMergeError}
+            message="Link Error"
+            description={singleMergeError}
             type="error"
             showIcon
             style={{ marginBottom: 16 }}
           />
         )}
 
-        {/* Source product card */}
         {mergeTargetProduct && (
-          <Card size="small" style={{ marginBottom: 16, backgroundColor: "#fafafa" }}>
-            <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <Card
+            size="small"
+            style={{ marginBottom: 16, backgroundColor: "#fafafa" }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <Avatar
                 src={getImageUrl(
                   mergeTargetProduct.productImage || mergeTargetProduct.image
@@ -917,34 +858,26 @@ const CTP001ProductsPage = () => {
                 size={60}
                 shape="square"
               />
+
               <div style={{ flex: "1 1 240px" }}>
                 <Title level={5} style={{ margin: 0 }}>
                   {getProductName(mergeTargetProduct)}
                 </Title>
+
                 <Text type="secondary">
                   Sales Mate ID: {getProductId(mergeTargetProduct)}
                 </Text>
+
                 <br />
+
                 <Text type="secondary">
                   Price: ₵{formatPrice(getProductPrice(mergeTargetProduct))}
                 </Text>
-
-                {/* Show current link if updating */}
-                {modalMode === MODAL_MODE.UPDATE &&
-                  mergedProductMap[getProductId(mergeTargetProduct)] && (
-                    <div style={{ marginTop: 4 }}>
-                      <Tag color="processing" icon={<LinkOutlined />}>
-                        Currently linked to:{" "}
-                        {mergedProductMap[getProductId(mergeTargetProduct)]}
-                      </Tag>
-                    </div>
-                  )}
               </div>
             </div>
           </Card>
         )}
 
-        {/* Website product search */}
         <div
           style={{
             marginBottom: 8,
@@ -955,11 +888,8 @@ const CTP001ProductsPage = () => {
             flexWrap: "wrap",
           }}
         >
-          <Text strong>
-            {modalMode === MODAL_MODE.UPDATE
-              ? "Select new Website Product:"
-              : "Available Website Products:"}
-          </Text>
+          <Text strong>Available Website Products:</Text>
+
           <Input
             placeholder="Search name or ID..."
             size="small"
@@ -976,13 +906,19 @@ const CTP001ProductsPage = () => {
           bordered
           pagination={
             displayedCandidates.length > 8
-              ? { pageSize: 8, size: "small", showSizeChanger: false }
+              ? {
+                  pageSize: 8,
+                  size: "small",
+                  showSizeChanger: false,
+                }
               : false
           }
           locale={{
             emptyText: (
               <Empty
-                description={websiteProducts.length ? "No matches." : "Loading..."}
+                description={
+                  websiteProducts.length ? "No matches." : "Loading..."
+                }
               />
             ),
           }}
@@ -1015,18 +951,29 @@ const CTP001ProductsPage = () => {
                   }}
                 >
                   <Avatar
-                    src={getImageUrl(item.product?.productImage || item.product?.image)}
+                    src={getImageUrl(
+                      item.product?.productImage || item.product?.image
+                    )}
                     size={45}
                     shape="square"
                   />
+
                   <div style={{ flex: "1 1 240px", minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, ...wrapStyle }}>{item.productName}</div>
+                    <div style={{ fontWeight: 600, ...wrapStyle }}>
+                      {item.productName}
+                    </div>
+
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       ID: {item.productId}
                     </Text>
+
                     <br />
-                    <Text type="secondary">₵{formatPrice(getProductPrice(item.product))}</Text>
+
+                    <Text type="secondary">
+                      ₵{formatPrice(getProductPrice(item.product))}
+                    </Text>
                   </div>
+
                   <div style={{ flex: "0 1 150px" }}>
                     <Progress
                       percent={Math.round(item.similarity * 100)}
@@ -1035,9 +982,13 @@ const CTP001ProductsPage = () => {
                       format={(percent) => `${percent}%`}
                     />
                   </div>
+
                   <div style={{ width: 24, textAlign: "center" }}>
                     {isSelected && (
-                      <CheckCircleTwoTone twoToneColor="#52c41a" style={{ fontSize: 18 }} />
+                      <CheckCircleTwoTone
+                        twoToneColor="#52c41a"
+                        style={{ fontSize: 18 }}
+                      />
                     )}
                   </div>
                 </div>
@@ -1046,18 +997,13 @@ const CTP001ProductsPage = () => {
           }}
         />
 
-        {/* Selected candidate info */}
         {selectedWebsiteCandidate && mergeTargetProduct && (
           <Alert
             style={{ marginTop: 16 }}
             type="info"
             showIcon
             icon={<LinkOutlined />}
-            message={
-              modalMode === MODAL_MODE.UPDATE
-                ? "New selection for update"
-                : "Selected for linking"
-            }
+            message="Selected for linking"
             description={
               <span>
                 <strong>{getProductName(selectedWebsiteCandidate)}</strong>{" "}
@@ -1074,7 +1020,6 @@ const CTP001ProductsPage = () => {
           />
         )}
 
-        {/* Footer actions */}
         <div
           style={{
             marginTop: 20,
@@ -1086,31 +1031,22 @@ const CTP001ProductsPage = () => {
             flexWrap: "wrap",
           }}
         >
-          <Button onClick={closeMergeModal} disabled={isBusy}>
-            Cancel
-          </Button>
+          <Button onClick={closeMergeModal}>Cancel</Button>
+
           <Button
             type="primary"
-            icon={modalMode === MODAL_MODE.UPDATE ? <EditOutlined /> : <LinkOutlined />}
-            loading={isBusy}
-            disabled={!selectedWebsiteCandidate || isBusy}
+            icon={<LinkOutlined />}
+            loading={isMerging || isSingleMerging}
+            disabled={!selectedWebsiteCandidate || isMerging || isSingleMerging}
             style={{
               backgroundColor:
-                selectedWebsiteCandidate && !isBusy
-                  ? modalMode === MODAL_MODE.UPDATE
-                    ? "#722ed1"
-                    : "#52c41a"
-                  : undefined,
+                selectedWebsiteCandidate && !isMerging ? "#52c41a" : undefined,
               borderColor:
-                selectedWebsiteCandidate && !isBusy
-                  ? modalMode === MODAL_MODE.UPDATE
-                    ? "#722ed1"
-                    : "#52c41a"
-                  : undefined,
+                selectedWebsiteCandidate && !isMerging ? "#52c41a" : undefined,
             }}
             onClick={handleConfirmMerge}
           >
-            {modalMode === MODAL_MODE.UPDATE ? "Confirm Update" : "Confirm Link"}
+            Confirm Link
           </Button>
         </div>
       </Modal>
